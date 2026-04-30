@@ -1,1 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Rajdhani:wght@300;400;500;600;700&family=Space+Grotesk:wght@300..700&display=swap');
 @import "tailwindcss";
+
+:root {
+  --color-ink: #000000;
+  --color-ink-soft: #161616;
+  --color-ink-muted: #2a2a2a;
+  --color-brand: #6d001a;
+  --color-brand-deep: #430010;
+  --color-brand-soft: #8e2139;
+  --color-brand-mist: #c88f9f;
+  --color-paper: #ffffff;
+  --color-paper-soft: #f5eef1;
+  --color-paper-muted: #e8d9df;
+  --color-border: rgba(0, 0, 0, 0.45);
+  --color-shadow: rgba(109, 0, 26, 0.18);
+}
+
+html {
+  background: var(--color-ink);
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(109, 0, 26, 0.14), transparent 34%),
+    linear-gradient(180deg, var(--color-paper) 0%, var(--color-paper-soft) 100%);
+  color: var(--color-ink);
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-Thin.otf") format("opentype");
+  font-weight: 100;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-ThinItalic.otf") format("opentype");
+  font-weight: 100;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-LightItalic.otf") format("opentype");
+  font-weight: 300;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-Italic.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-BoldItalic.otf") format("opentype");
+  font-weight: 700;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-Extrabold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-ExtraboldItalic.otf") format("opentype");
+  font-weight: 800;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-Black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Zodiak";
+  src: url("./fonts/Zodiak-BlackItalic.otf") format("opentype");
+  font-weight: 900;
+  font-style: italic;
+}
+
+.zodiak {
+  font-family: "Zodiak", serif;
+}
+
+.rajdhani-light {
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 300;
+  font-style: normal;
+}
+
+.rajdhani-regular {
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.rajdhani-medium {
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.rajdhani-semibold {
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.rajdhani-bold {
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.audiowide-regular {
+  font-family: "Audiowide", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+/* Base class */
+.space-grotesk {
+  font-family: "Space Grotesk", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+/* Variants */
+.sg-light   { font-weight: 300; }
+.sg-regular { font-weight: 400; }
+.sg-medium  { font-weight: 500; }
+.sg-semibold{ font-weight: 600; }
+.sg-bold    { font-weight: 700; }
