@@ -1,57 +1,92 @@
+import hero from "../assets/hero.png";
+import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import Behaviour from "../sections/Landing/Behaviour";
 import HowWorks from "../sections/Landing/HowWorks";
 import Metrices from "../sections/Landing/Metrices";
+import SplitChillCTA from "../sections/Landing/SplitChillCTA";
 import SplitChillWork from "../sections/Landing/SplitChillWork";
+import UnspokenMoments from "../sections/Landing/UnspokenMoments";
+import UseCases from "../sections/Landing/UseCases";
 import VisualProof from "../sections/Landing/VisualProof";
 
 export default function Index() {
-    return (
-        <>
-            <section className="relative min-h-screen overflow-hidden bg-[#F2FFE4]">
-               
-                <div className="pointer-events-none absolute top-0 left-0 right-0 h-170 bg-gradient-to-b from-[#FDFFFB] to-transparent " />
+  return (
+    <>
+      {/* HERO SECTION */}
+      <section className="relative min-h-screen bg-[#F5F5F0] overflow-hidden">
 
-                <div className="min-h-full relative z-0">
-                    <Navbar />
-                    <section className="relative">
-                        <div className="mt-28 pt-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-center text-gray-900 tracking-tight leading-tight">
-                                The Future of Expense Splitting
-                            </h1>
-                            <p className="mt-6 text-base sm:text-lg text-center text-gray-700 max-w-2xl mx-auto leading-relaxed">
-                                SplitChill replaces basic bill splitting with an AI-driven system that ensures
-                                fair, balanced expenses through intelligent insights and seamless group management.
-                            </p>
-                            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 mt-10">
-                                <button className="px-8 py-3.5 bg-gray-900 text-white font-semibold rounded-full hover:bg-gray-800 transition-colors duration-200 shadow-lg hover:shadow-xl cursor-pointer">
-                                    Explore
-                                </button>
-                                <button className="px-8 py-3.5 bg-white/80 backdrop-blur-sm text-gray-900 font-semibold rounded-full border border-gray-200 hover:bg-white transition-colors duration-200 shadow-md hover:shadow-lg cursor-pointer">
-                                    Learn More
-                                </button>
-                            </div>
-                            <div className="mt-16 sm:mt-20 relative w-full max-w-5xl mx-auto aspect-video rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-900/10">
-                                <video 
-                                    autoPlay 
-                                    muted 
-                                    loop 
-                                    playsInline 
-                                    className="w-full h-full object-cover"
-                                >
-                                    <source src="/video.mp4" type="video/mp4" />
-                                </video>
-                            </div>
-                        </div>
-                    </section>
-                   
-                </div>
-            </section>
-             <SplitChillWork/>
-            <HowWorks/>
-            <Behaviour/>
-            <Metrices/>
-            <VisualProof/>
-        </>
-    );
+        {/* Soft gradient glow */}
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-[400px] bg-gradient-to-b from-white to-transparent" />
+
+        <Navbar />
+
+        <div className="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-20">
+
+          {/* HEADLINE */}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-serif text-center text-black tracking-tight leading-[1.1]">
+            Fairness in sharing <br /> starts here
+          </h1>
+
+          {/* SUBTEXT */}
+          <p className="mt-6 text-lg text-center text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            SplitChill replaces basic bill splitting with a fairness-driven system 
+            that adapts to income, participation, and real-world behavior.
+          </p>
+
+          {/* CTA BUTTONS */}
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-5 mt-10">
+
+            <button className="px-8 py-3.5 rounded-full bg-black text-white 
+              hover:scale-105 transition-all duration-300 shadow-md">
+              Split Fairly
+            </button>
+
+            <button className="px-8 py-3.5 rounded-full border border-black/10 
+              bg-white/70 backdrop-blur-md text-black 
+              hover:shadow-md transition-all duration-300">
+              See How It Works
+            </button>
+
+          </div>
+
+          {/* HERO VISUAL */}
+          <div className="mt-20 relative w-full max-w-5xl mx-auto">
+
+            {/* Glow background */}
+            <div className="absolute inset-0 bg-[#A3FDA7]/20 blur-3xl opacity-40" />
+
+            <div className="relative aspect-video rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.08)] ring-1 ring-black/5">
+
+              <img
+                src={hero}
+                alt="SplitChill dashboard preview"
+                className="w-full h-full object-cover"
+              />
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* SECTIONS FLOW */}
+      <div className="bg-[#F5F5F0]">
+
+        <SplitChillWork />
+        <UseCases />
+        <HowWorks />
+        
+        <Behaviour />
+        <Metrices />
+        <VisualProof />
+        
+        <UnspokenMoments />
+        <SplitChillCTA />
+
+      </div>
+
+      <Footer />
+    </>
+  );
 }

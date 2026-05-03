@@ -1,219 +1,294 @@
 import React from "react";
 
-const ArrowButton = () => (
-  <div className="absolute bottom-6 right-6 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 transition-all duration-300 group-hover:bg-gray-900 group-hover:text-white">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14M12 5l7 7-7 7" />
-    </svg>
-  </div>
+// ── Mint check icon ──
+const MintCheck = ({ size = 10 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
 );
 
+// ── Avatar ──
 const Avatar = ({ initials, color, size = "w-8 h-8" }) => (
-  <div className={`${size} rounded-full flex items-center justify-center text-white text-[11px] font-bold ${color}`}>
+  <div className={`${size} rounded-full flex items-center justify-center text-white text-[10px] font-semibold ${color} select-none flex-shrink-0`}>
     {initials}
   </div>
 );
 
+// ── Eyebrow label ──
+const Eyebrow = ({ children, light = false }) => (
+  <p className={`text-[10px] tracking-[0.22em] uppercase font-semibold mb-3 ${light ? "text-[#A3FDA7]" : "text-[#6B7280]"}`}>
+    {children}
+  </p>
+);
+
 export default function Behaviour() {
   return (
-    <section className="min-h-screen bg-[#D1FADF] px-5 py-10 lg:py-12 flex flex-col">
-      <div className="max-w-7xl mx-auto w-full flex flex-col h-full">
-        
-        {/* Header */}
-        <div className="mb-8 lg:mb-10">
-          <p className="text-[11px] tracking-[0.2em] text-gray-500 mb-4 uppercase font-medium">
-            Behavior-Driven Splitting
-          </p>
-          <h2 className="text-4xl lg:text-5xl font-medium leading-[1.1] text-black max-w-2xl">
-            Expenses that adapt to people, not formulas
+    <section
+      className="min-h-screen px-5 py-16 lg:py-20 flex flex-col relative overflow-hidden"
+      style={{ backgroundColor: "#F5F5F0" }}
+    >
+      {/* Ambient mint glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-0 right-0 w-[700px] h-[700px] rounded-full"
+        style={{
+          background: "radial-gradient(ellipse at top right, rgba(163,253,167,0.11) 0%, transparent 65%)",
+          filter: "blur(60px)",
+        }}
+      />
+
+      <div className="max-w-7xl mx-auto w-full flex flex-col relative z-10">
+
+        {/* ── Header ── */}
+        <div className="mb-10 lg:mb-12">
+          <div className="inline-flex items-center gap-2 mb-5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#A3FDA7]" />
+            <p className="text-[11px] tracking-[0.18em] text-[#6B7280] uppercase font-medium">
+              Behavior-Driven Splitting
+            </p>
+          </div>
+          <h2
+            className="text-4xl lg:text-5xl leading-[1.12] text-black max-w-2xl"
+            style={{ fontFamily: "'Georgia', 'Playfair Display', serif", fontWeight: 500 }}
+          >
+            Expenses that adapt to{" "}
+            <span style={{ color: "#2a7a3b" }}>people</span>,<br />
+            not formulas.
           </h2>
         </div>
 
-        {/* Bento Grid — single screen */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1 min-h-0">
-          
-          {/* Card 1: Income Awareness */}
-          <div className="group relative bg-white rounded-[2rem] p-8 lg:p-10 shadow-sm hover:shadow-lg transition-all duration-500 overflow-hidden flex flex-col">
-            <div className="mb-6">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Income Awareness</h3>
-              <p className="text-gray-500 text-base leading-snug max-w-sm">
+        {/* ── Bento Grid ── */}
+        {/*
+          Layout (mirrors screenshot):
+          [   Income Awareness (tall)   ] [ Participation ] [ Contribution ]
+          [          (full h)           ] [  Predictive Balance (wide split) ]
+        */}
+        <div className="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-4">
+
+          {/* ─────────────────────────────────────────
+              LEFT: Income Awareness — tall image card
+          ───────────────────────────────────────── */}
+          <div className="group relative rounded-[28px] overflow-hidden min-h-[520px] lg:min-h-[640px]">
+            <img
+              src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=900&q=80"
+              alt="Friends splitting expenses on a trip"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+            />
+            {/* Gradient overlay */}
+            <div className="absolute inset-0" style={{
+              background: "linear-gradient(to top, rgba(5,20,10,0.88) 0%, rgba(5,20,10,0.35) 50%, rgba(5,20,10,0.08) 100%)"
+            }} />
+
+            {/* Content */}
+            <div className="relative h-full flex flex-col justify-end p-8 lg:p-10">
+              <Eyebrow light>Income Awareness</Eyebrow>
+              <h3
+                className="text-3xl lg:text-[2.25rem] font-medium text-white leading-[1.1] mb-3"
+                style={{ fontFamily: "'Georgia', 'Playfair Display', serif" }}
+              >
+                Income Awareness
+              </h3>
+              <p className="text-white/65 text-sm leading-relaxed max-w-xs mb-5">
                 Adjusts contributions based on what each person can realistically afford.
               </p>
-            </div>
 
-            <div className="flex-1 bg-[#F5F5F7] rounded-2xl p-5 flex flex-col justify-center">
-              <div className="space-y-3">
+              {/* Mini income rows — glass style */}
+              <div className="space-y-2">
                 {[
-                  { name: "Jordan", init: "JD", color: "bg-blue-500", income: "$45k", old: "$33.33", new: "$20.00", highlight: true },
-                  { name: "Alex", init: "AL", color: "bg-purple-500", income: "$120k", old: "$33.33", new: "$50.00", highlight: false },
-                  { name: "Sam", init: "SM", color: "bg-orange-400", income: "$60k", old: "$33.33", new: "$30.00", highlight: false },
+                  { name: "Jordan", income: "$45k", old: "$33.33", new: "$20.00", highlight: true },
+                  { name: "Alex",   income: "$120k", old: "$33.33", new: "$50.00", highlight: false },
+                  { name: "Sam",    income: "$60k",  old: "$33.33", new: "$30.00", highlight: false },
                 ].map((p) => (
-                  <div key={p.name} className="flex items-center justify-between bg-white rounded-xl p-3.5 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <Avatar initials={p.init} color={p.color} size="w-8 h-8" />
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{p.name}</p>
-                        <p className="text-[11px] text-gray-400">Income: {p.income}</p>
-                      </div>
+                  <div
+                    key={p.name}
+                    className="flex items-center justify-between rounded-xl px-3.5 py-2.5 border border-white/10"
+                    style={{ background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}
+                  >
+                    <div>
+                      <p className="text-xs font-medium text-white leading-tight">{p.name}</p>
+                      <p className="text-[10px] text-white/45">Income: {p.income}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[11px] text-gray-400 line-through">{p.old}</p>
-                      <p className={`text-sm font-bold ${p.highlight ? "text-green-600" : "text-gray-900"}`}>{p.new}</p>
+                      <p className="text-[10px] text-white/25 line-through">{p.old}</p>
+                      <p className={`text-sm font-semibold ${p.highlight ? "text-[#A3FDA7]" : "text-white"}`}>
+                        {p.new}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-[11px] font-semibold px-3 py-1.5 rounded-lg w-fit">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+
+              {/* Mint fairness badge */}
+              <div
+                className="mt-4 inline-flex items-center gap-1.5 text-[#A3FDA7] text-[10px] font-semibold px-3 py-1.5 rounded-lg w-fit border border-[#A3FDA7]/25"
+                style={{ background: "rgba(163,253,167,0.12)" }}
+              >
+                <MintCheck size={9} />
                 Fairness-adjusted by income
               </div>
             </div>
-
-            <ArrowButton />
           </div>
 
-          {/* Card 2: Participation Tracking */}
-          <div className="group relative bg-white rounded-[2rem] p-8 lg:p-10 shadow-sm hover:shadow-lg transition-all duration-500 overflow-hidden flex flex-col">
-            <div className="mb-6">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Participation Tracking</h3>
-              <p className="text-gray-500 text-base leading-snug max-w-sm">
-                Accounts for who actually used or benefited from each expense.
-              </p>
+          {/* ─────────────────────────────────────────
+              RIGHT: 2×2 inner grid
+          ───────────────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            {/* Card 2: Participation Tracking — image card */}
+            <div className="group relative rounded-[28px] overflow-hidden min-h-[280px]">
+              <img
+                src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80"
+                alt="Restaurant dinner table"
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+              />
+              <div className="absolute inset-0" style={{
+                background: "linear-gradient(to top, rgba(10,25,15,0.85) 0%, rgba(10,25,15,0.2) 60%, transparent 100%)"
+              }} />
+              <div className="relative h-full flex flex-col justify-end p-7">
+                <Eyebrow light>Participation</Eyebrow>
+                <h3
+                  className="text-xl lg:text-2xl font-medium text-white leading-[1.1] mb-2"
+                  style={{ fontFamily: "'Georgia', serif" }}
+                >
+                  Participation Tracking
+                </h3>
+                <p className="text-white/60 text-xs leading-relaxed mb-3">
+                  Only the people who actually showed up contribute.
+                </p>
+                {/* Participant pills */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { name: "Jordan", on: true },
+                    { name: "Alex",   on: true },
+                    { name: "Sam",    on: false },
+                  ].map((p) => (
+                    <div
+                      key={p.name}
+                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 border border-white/10"
+                      style={{ background: "rgba(255,255,255,0.09)", backdropFilter: "blur(6px)" }}
+                    >
+                      <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 ${p.on ? "bg-[#A3FDA7] text-[#1a5c27]" : "bg-white/20"}`}>
+                        {p.on && <MintCheck size={7} />}
+                      </div>
+                      <span className={`text-[10px] font-medium ${p.on ? "text-white" : "text-white/40"}`}>{p.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="flex-1 bg-[#F5F5F7] rounded-2xl p-5 flex flex-col justify-center">
-              <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-semibold text-gray-900">Dinner at Bistro</p>
-                  <span className="text-sm font-bold text-gray-900">$120</span>
+            {/* Card 3: Contribution History — image card */}
+            <div className="group relative rounded-[28px] overflow-hidden min-h-[280px]">
+              <img
+                src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80"
+                alt="Analytics dashboard on screen"
+                className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.04]"
+              />
+              <div className="absolute inset-0" style={{
+                background: "linear-gradient(to top, rgba(8,20,12,0.88) 0%, rgba(8,20,12,0.25) 55%, transparent 100%)"
+              }} />
+              <div className="relative h-full flex flex-col justify-end p-7">
+                <Eyebrow light>Long-term</Eyebrow>
+                <h3
+                  className="text-xl lg:text-2xl font-medium text-white leading-[1.1] mb-2"
+                  style={{ fontFamily: "'Georgia', serif" }}
+                >
+                  Contribution History
+                </h3>
+                <p className="text-white/60 text-xs leading-relaxed mb-3">
+                  Learns from past payments to maintain long-term balance.
+                </p>
+                {/* Mini bar chart */}
+                <div className="flex items-end gap-1.5 h-9 mb-2">
+                  {[
+                    { h: "30%", hi: false },
+                    { h: "50%", hi: false },
+                    { h: "70%", hi: false },
+                    { h: "45%", hi: false },
+                    { h: "90%", hi: true  },
+                  ].map((b, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 rounded-t-sm"
+                      style={{
+                        height: b.h,
+                        background: b.hi ? "#A3FDA7" : "rgba(255,255,255,0.18)",
+                        alignSelf: "flex-end",
+                      }}
+                    />
+                  ))}
                 </div>
-                <p className="text-[11px] text-gray-400">Mar 12 • Split among participants</p>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#A3FDA7] flex-shrink-0" />
+                  <span className="text-[10px] text-white/55">Group balance +12% this month</span>
+                </div>
               </div>
+            </div>
 
-              <div className="space-y-2.5">
-                {[
-                  { name: "Jordan", init: "JD", color: "bg-blue-500", on: true, amount: "$40" },
-                  { name: "Alex", init: "AL", color: "bg-purple-500", on: true, amount: "$40" },
-                  { name: "Sam", init: "SM", color: "bg-orange-400", on: false, amount: "$0" },
-                ].map((p) => (
-                  <div key={p.name} className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <Avatar initials={p.init} color={p.color} size="w-7 h-7" />
-                      <span className="text-sm font-medium text-gray-700">{p.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-bold ${p.on ? "text-gray-900" : "text-gray-300"}`}>{p.amount}</span>
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${p.on ? "bg-green-500" : "bg-gray-200"}`}>
-                        {p.on && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
+            {/* Card 4: Predictive Balance — SPLIT card (white + image) */}
+            <div className="sm:col-span-2 group relative rounded-[28px] overflow-hidden bg-white border border-black/[0.04] shadow-sm flex min-h-[230px]">
+
+              {/* Left: white panel with text + UI */}
+              <div className="flex-1 p-7 lg:p-8 flex flex-col justify-between z-10 min-w-0">
+                <div>
+                  <Eyebrow>Predictive</Eyebrow>
+                  <h3
+                    className="text-xl lg:text-2xl font-medium text-black leading-[1.1] mb-2"
+                    style={{ fontFamily: "'Georgia', 'Playfair Display', serif" }}
+                  >
+                    Predictive Balance
+                  </h3>
+                  <p className="text-[#6B7280] text-xs leading-relaxed max-w-[210px]">
+                    Suggests who should pay next to keep the group naturally fair.
+                  </p>
+                </div>
+
+                {/* Suggested payer */}
+                <div className="mt-5 space-y-2">
+                  <div className="flex items-center gap-3 bg-[#FAFAF8] rounded-xl px-3.5 py-3 border border-black/[0.04]">
+                    <div className="relative flex-shrink-0">
+                      <Avatar initials="SM" color="bg-[#9CA3AF]" size="w-9 h-9" />
+                      <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#A3FDA7] rounded-full flex items-center justify-center border-2 border-white text-[#1a5c27]">
+                        <MintCheck size={7} />
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <ArrowButton />
-          </div>
-
-          {/* Card 3: Contribution History */}
-          <div className="group relative bg-white rounded-[2rem] p-8 lg:p-10 shadow-sm hover:shadow-lg transition-all duration-500 overflow-hidden flex flex-col">
-            <div className="mb-6">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Contribution History</h3>
-              <p className="text-gray-500 text-base leading-snug max-w-sm">
-                Learns from past payments to maintain long-term balance.
-              </p>
-            </div>
-
-            <div className="flex-1 bg-[#F5F5F7] rounded-2xl p-5 flex flex-col justify-center">
-              <div className="flex items-end justify-between h-20 mb-5 gap-3 px-2">
-                {[
-                  { month: "Jan", h: "h-6", color: "bg-blue-200" },
-                  { month: "Feb", h: "h-10", color: "bg-purple-200" },
-                  { month: "Mar", h: "h-14", color: "bg-orange-200" },
-                  { month: "Apr", h: "h-9", color: "bg-blue-300" },
-                  { month: "May", h: "h-16", color: "bg-purple-300" },
-                ].map((b) => (
-                  <div key={b.month} className="flex-1 flex flex-col items-center gap-2">
-                    <div className={`w-full ${b.h} ${b.color} rounded-t-lg`} />
-                    <span className="text-[10px] text-gray-400 font-medium">{b.month}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    <span className="text-gray-600">Group balance maintained</span>
-                  </div>
-                  <span className="font-bold text-green-600">+12%</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    <span className="text-gray-600">Avg. variance reduced</span>
-                  </div>
-                  <span className="font-bold text-blue-600">-8%</span>
-                </div>
-              </div>
-            </div>
-
-            <ArrowButton />
-          </div>
-
-          {/* Card 4: Predictive Balance */}
-          <div className="group relative bg-white rounded-[2rem] p-8 lg:p-10 shadow-sm hover:shadow-lg transition-all duration-500 overflow-hidden flex flex-col">
-            <div className="mb-6">
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Predictive Balance</h3>
-              <p className="text-gray-500 text-base leading-snug max-w-sm">
-                Suggests who should pay next to keep the group fair.
-              </p>
-            </div>
-
-            <div className="flex-1 bg-[#F5F5F7] rounded-2xl p-5 flex flex-col justify-center">
-              <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-3">Suggested Next Payer</p>
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <Avatar initials="SM" color="bg-orange-400" size="w-11 h-11" />
-                    <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
+                    <div>
+                      <p className="text-xs font-semibold text-black">Sam pays next</p>
+                      <p className="text-[10px] text-[#9CA3AF]">Based on 3-month contribution pattern</p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-base font-bold text-gray-900">Sam pays next</p>
-                    <p className="text-[11px] text-gray-400">Based on 3-month contribution pattern</p>
+
+                  <div className="flex items-center gap-2.5 bg-[#FAFAF8] rounded-xl px-3.5 py-2.5 border border-black/[0.04]">
+                    <div className="flex -space-x-1.5 flex-shrink-0">
+                      <Avatar initials="JD" color="bg-[#9CA3AF]" size="w-5 h-5" />
+                      <Avatar initials="AL" color="bg-[#6B7280]" size="w-5 h-5" />
+                      <Avatar initials="SM" color="bg-[#D1D5DB]" size="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: "92%", background: "linear-gradient(to right, #A3FDA7, #7CF29A)" }} />
+                    </div>
+                    <span className="text-[10px] font-semibold text-black flex-shrink-0">92%</span>
+                    <span className="text-[9px] text-[#9CA3AF] flex-shrink-0">fairness</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between bg-white rounded-xl p-3.5 shadow-sm">
-                <div className="flex -space-x-2">
-                  <Avatar initials="JD" color="bg-blue-500" size="w-6 h-6" />
-                  <Avatar initials="AL" color="bg-purple-500" size="w-6 h-6" />
-                  <Avatar initials="SM" color="bg-orange-400" size="w-6 h-6" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full w-[92%] bg-gradient-to-r from-green-400 to-green-500 rounded-full" />
-                  </div>
-                  <span className="text-xs font-bold text-gray-700">92%</span>
-                </div>
+              {/* Right: image panel */}
+              <div className="relative w-[42%] flex-shrink-0">
+                <img
+                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80"
+                  alt="Team collaborating together"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                />
+                {/* Fade from white on the left edge */}
+                <div
+                  className="absolute inset-0"
+                  style={{ background: "linear-gradient(to right, #ffffff 0%, rgba(255,255,255,0.1) 30%, transparent 60%)" }}
+                />
               </div>
-              <p className="text-[10px] text-gray-400 mt-2 text-right">Fairness score</p>
             </div>
 
-            <ArrowButton />
           </div>
-
         </div>
       </div>
     </section>

@@ -165,3 +165,7 @@ body {
 .sg-medium  { font-weight: 500; }
 .sg-semibold{ font-weight: 600; }
 .sg-bold    { font-weight: 700; }
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
