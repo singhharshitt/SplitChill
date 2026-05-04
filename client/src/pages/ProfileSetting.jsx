@@ -2,25 +2,16 @@ import React, { useState, useEffect } from "react";
 import PaymentMethod from "../components/PaymentMethod.jsx";
 import ProfileCard from "../components/ProfileCard.jsx";
 import ToggleSwitch from "../components/ToggleSwitch.jsx";
+import Navbar from "../components/Navbar.jsx";
 import IncomeSettings from "../sections/ProfileSetting/IncomeSetting.jsx";
 import SecuritySetting from "../sections/ProfileSetting/SecuritySetting.jsx";
 
-/* ─────────────────────────────────────────────
-   TOKENS
-   ───────────────────────────────────────────── */
 const cardBase =
   "bg-white rounded-[24px] p-6 md:p-8 shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04] transition-all duration-300 hover:shadow-[0_8px_40px_rgba(0,0,0,0.06)] hover:-translate-y-0.5";
 const serif = "font-serif text-black tracking-tight";
 const sans = "font-sans text-gray-600";
 
-/* ─────────────────────────────────────────────
-   REUSABLE TOGGLE SWITCH
-   ───────────────────────────────────────────── */
 
-
-/* ─────────────────────────────────────────────
-   AI INSIGHT CARD
-   ───────────────────────────────────────────── */
 function AIInsightCard({ text, small }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -62,26 +53,6 @@ function AIInsightCard({ text, small }) {
     </div>
   );
 }
-
-/* ─────────────────────────────────────────────
-   1. PROFILE CARD
-   ───────────────────────────────────────────── */
-
-
-/* ─────────────────────────────────────────────
-   2. INCOME SETTINGS (FAIRNESS ENGINE CORE)
-   ───────────────────────────────────────────── */
-
-
-
-
-/* ─────────────────────────────────────────────
-   4. SECURITY & PRIVACY
-   ───────────────────────────────────────────── */
-
-/* ─────────────────────────────────────────────
-   5. PREFERENCES (BEHAVIOR CONTROL)
-   ───────────────────────────────────────────── */
 function PreferencesPanel() {
   const [defaultSplit, setDefaultSplit] = useState("ai");
   const [reminders, setReminders] = useState(true);
@@ -164,9 +135,7 @@ function PreferencesPanel() {
   );
 }
 
-/* ─────────────────────────────────────────────
-   FLOATING SPLIT BUTTON
-   ───────────────────────────────────────────── */
+
 function FloatingSplitButton() {
   return (
     <button className="fixed bottom-8 right-8 z-50 px-6 py-3.5 rounded-full bg-black text-white text-sm font-medium shadow-2xl shadow-black/20 hover:scale-105 hover:shadow-black/30 transition-all duration-300 flex items-center gap-2">
@@ -178,14 +147,12 @@ function FloatingSplitButton() {
   );
 }
 
-/* ─────────────────────────────────────────────
-   MAIN PROFILE PAGE
-   ───────────────────────────────────────────── */
 export default function ProfileSettingsPage() {
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30 pb-24">
       {/* Header */}
-      <nav className="max-w-3xl mx-auto px-6 pt-8 pb-2 flex items-center justify-between">
+      <Navbar />
+      <nav className="max-w-3xl mx-auto px-6 pt-24 pb-2 flex items-center justify-between">
         <div>
           <h1 className={`${serif} text-3xl`}>Profile</h1>
           <p className={`${sans} text-sm mt-1`}>Your fairness calibration center.</p>

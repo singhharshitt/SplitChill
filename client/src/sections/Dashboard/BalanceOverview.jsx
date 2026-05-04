@@ -10,8 +10,7 @@ const serifHeading = "font-serif text-black tracking-tight";
 export default function BalanceOverview() {
   return (
     <div className={`${cardBase} relative overflow-hidden`}>
-      <div className="absolute top-0 right-0 w-64 h-64 bg-[#A3FDA7]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-      
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#A3FDA7]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />      
       <h2 className={`${serifHeading} text-3xl md:text-4xl mb-8`}>
         Your financial balance, <br className="hidden md:block" />
         <span className="italic text-gray-500">at a glance</span>

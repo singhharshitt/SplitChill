@@ -1,10 +1,19 @@
 import React, { useState, useMemo } from "react";
 import FilterBar from "../components/FilterBar.jsx";
+import Navbar from "../components/Navbar.jsx";
 import TransactionItem from "../components/TransactionItem.jsx";
-import { sans, serif } from "../lib/uiTokens.js";
 import { GROUPS, PEOPLE } from "../lib/transactionFilters.js";
 import SummaryStats from "../sections/Transaction/SummaryStats.jsx";
 import TransactionDetailModal from "../sections/Transaction/TransactionDetailModal.jsx";
+
+function InsightBadge({ text }) {
+  return (
+    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-black/5 shadow-sm">
+      <div className="w-1.5 h-1.5 rounded-full bg-[#A3FDA7]" />
+      <span className="text-xs text-gray-600">{text}</span>
+    </div>
+  );
+}
 
 /* ─────────────────────────────────────────────
    TOKENS
@@ -159,7 +168,12 @@ export default function TransactionsPage() {
     return TRANSACTIONS.filter((t) => {
       const groupMatch = filters.group === "All Groups" || t.group === filters.group;
       const personMatch = filters.person === "All People" || t.payer === filters.person || t.breakdown.some((b) => b.name === filters.person);
-      const searchMatch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.group.toLowerCase().includes(searchQuery.toLowerCase());
+      const normalizedQuery = searchQuery.toLowerCase();
+      const searchMatch = !searchQuery ||
+        t.title.toLowerCase().includes(normalizedQuery) ||
+        t.group.toLowerCase().includes(normalizedQuery) ||
+        t.payer.toLowerCase().includes(normalizedQuery) ||
+        t.breakdown.some((b) => b.name.toLowerCase().includes(normalizedQuery));
       return groupMatch && personMatch && searchMatch;
     });
   }, [filters, searchQuery]);
@@ -170,13 +184,10 @@ export default function TransactionsPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30">
-      {/* Header */}
-      <nav className="max-w-4xl mx-auto px-6 pt-8 pb-2">
-        <h1 className={`${serif} text-3xl`}>Transactions</h1>
-        <p className={`${sans} text-sm mt-1`}>Every rupee, explained and verified.</p>
-      </nav>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
+      <Navbar/>
+
+      <main className="max-w-4xl mx-auto px-6 pt-24 pb-8 flex flex-col gap-8">
         {/* Summary Stats */}
         <SummaryStats transactions={TRANSACTIONS} />
 

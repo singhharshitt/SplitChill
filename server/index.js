@@ -1,27 +1,25 @@
-const cors = require("cors");
 const dotenv = require("dotenv");
-const express = require("express");
+const http = require("http");
 
 dotenv.config();
 
-const app = express();
+const app = require("./src/app");
+const connectDb = require("./src/config/db");
+const { initSocket } = require("./src/socket/socketHub");
+
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const server = http.createServer(app);
 
-app.use(
-  cors({
-    origin: CLIENT_URL,
-  }),
-);
-app.use(express.json());
+initSocket(server, CLIENT_URL);
 
-app.get("/api/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    service: "SplitChill API",
+connectDb()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`SplitChill API listening on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Failed to start SplitChill API", error);
+    process.exit(1);
   });
-});
-
-app.listen(PORT, () => {
-  console.log(`SplitChill API listening on port ${PORT}`);
-});

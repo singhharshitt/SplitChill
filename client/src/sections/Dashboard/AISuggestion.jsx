@@ -4,7 +4,7 @@ const cardBase =
 export default function AISuggestion() {
   return (
     <div className={`${cardBase} relative overflow-hidden bg-[#FAFAF8]`}>
-      {/* Mint glow */}
+
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-[#A3FDA7]/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-[#A3FDA7]/10 rounded-full blur-2xl pointer-events-none" />
 

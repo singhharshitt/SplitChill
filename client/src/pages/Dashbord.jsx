@@ -6,6 +6,7 @@ import QuickActions from "../sections/Dashboard/QuickActions";
 import FairnessScore from "../sections/Dashboard/FairnessScore";
 import BalanceOverview from "../sections/Dashboard/BalanceOverview";
 import AISuggestion from "../sections/Dashboard/AISuggestion";
+import Navbar from "../components/Navbar.jsx";
 
 
 function DoodleStrip() {
@@ -24,13 +25,9 @@ function DoodleStrip() {
 export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30">
-      {/* Optional subtle top nav placeholder */}
-      <nav className="max-w-6xl mx-auto px-6 pt-8 pb-2 flex items-center justify-between">
-        <h1 className="font-serif text-2xl text-black tracking-tight">SplitChill</h1>
-        <div className="w-8 h-8 rounded-full bg-black/5" />
-      </nav>
+      <Navbar/>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 flex flex-col gap-8">
+      <main className="max-w-6xl mx-auto px-6 pt-24 pb-8 flex flex-col gap-8">
         <BalanceOverview/>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

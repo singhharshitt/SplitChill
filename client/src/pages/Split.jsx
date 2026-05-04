@@ -5,6 +5,7 @@ import SplitTypeSelector from "../sections/Split/SplitTypeSelector";
 import SplitPreview from "../sections/Split/DynamicSplitPreview";
 import AIInsightCard from "../sections/Split/AIInsightCard";
 import FairnessIndicator from "../sections/Split/FiarnesIndicator";
+import Navbar from "../components/Navbar.jsx";
 /* ─────────────────────────────────────────────
    8. DOODLE ILLUSTRATION  (Hand-drawn SVG)
    ───────────────────────────────────────────── */
@@ -80,12 +81,13 @@ export default function Split() {
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30">
       {/* Minimal header */}
-      <nav className="max-w-2xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">
+      {/* <nav className="max-w-2xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">
         <h1 className="font-serif text-2xl text-black tracking-tight">SplitChill</h1>
         <span className="text-xs text-gray-400 uppercase tracking-widest">New Split</span>
-      </nav>
+      </nav> */}
+      <Navbar/>
 
-      <main className="max-w-2xl mx-auto px-6 py-10 flex flex-col gap-14">
+      <main className="max-w-2xl mx-auto px-6 pt-24 pb-10 flex flex-col gap-14">
         {/* Step 1 */}
         <section>
           <AmountInput value={amount} onChange={setAmount} />
