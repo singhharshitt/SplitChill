@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import ChatWindow from "../sections/SmartChat/ChatWindow.jsx";
 import ChatListItem from "../sections/SmartChat/ChatListItem.jsx";
 import GroupDetail from "../sections/SmartChat/GroupDetail.jsx";
 import GroupListItem from "../sections/SmartChat/GroupListItem.jsx";
+import { useLiveData } from "../context/LiveDataContext.jsx";
 
 /* ─────────────────────────────────────────────
    TOKENS
@@ -255,12 +256,30 @@ function SmartActionBubble({ actions, context }) {
    MAIN PAGE
    ───────────────────────────────────────────── */
 export default function GroupsChatSystem() {
+  const { groups, selectedGroupId: liveSelectedGroupId, setSelectedGroupId: setLiveSelectedGroupId, sendMessage, isLoading, error } = useLiveData();
   const [activeTab, setActiveTab] = useState("groups");
-  const [selectedGroupId, setSelectedGroupId] = useState(1);
+  const [localSelectedGroupId, setLocalSelectedGroupId] = useState(null);
   const [selectedChatId, setSelectedChatId] = useState(null);
+  const selectedGroupId = localSelectedGroupId || liveSelectedGroupId;
 
-  const selectedGroup = GROUPS.find((g) => g.id === selectedGroupId);
-  const selectedChat = CHATS.find((c) => c.id === selectedChatId);
+  const chats = useMemo(() => groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    type: "group",
+    avatar: group.avatar,
+    lastMessage: group.messages.at(-1)?.text || "No messages yet",
+    time: group.messages.at(-1)?.time || "",
+    unread: 0,
+    balance: group.balance,
+    messages: group.messages,
+  })), [groups]);
+
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId);
+  const selectedChat = chats.find((c) => c.id === selectedChatId);
+  const selectGroup = (id) => {
+    setLocalSelectedGroupId(id);
+    setLiveSelectedGroupId(id);
+  };
 
   return (
     <div className="h-screen w-full bg-[#F5F5F0] flex overflow-hidden font-sans selection:bg-[#A3FDA7]/30">
@@ -291,21 +310,23 @@ export default function GroupsChatSystem() {
         {/* List */}
         <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
           {activeTab === "groups" ? (
-            GROUPS.map((g) => (
-              <GroupListItem key={g.id} group={g} isActive={g.id === selectedGroupId} onClick={() => setSelectedGroupId(g.id)} />
+            groups.map((g) => (
+              <GroupListItem key={g.id} group={g} isActive={g.id === selectedGroupId} onClick={() => selectGroup(g.id)} />
             ))
           ) : (
-            CHATS.map((c) => (
+            chats.map((c) => (
               <ChatListItem key={c.id} chat={c} isActive={c.id === selectedChatId} onClick={() => setSelectedChatId(c.id)} />
             ))
           )}
+          {!isLoading && activeTab === "groups" && groups.length === 0 && <p className="px-3 text-xs text-gray-400">No groups yet.</p>}
+          {error && <p className="px-3 text-xs text-red-600">{error}</p>}
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 p-6 overflow-y-auto">
         {activeTab === "groups" ? (
-          selectedGroup ? <GroupDetail group={selectedGroup} /> : (
+          selectedGroup ? <GroupDetail group={selectedGroup} onSendMessage={(text) => sendMessage(selectedGroup.id, text)} /> : (
             <div className="h-full flex items-center justify-center">
               <p className="text-gray-400 font-serif text-xl">Select a group</p>
             </div>

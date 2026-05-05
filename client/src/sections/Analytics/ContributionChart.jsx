@@ -1,18 +1,16 @@
 
 import { cardBase, sans, serif } from "../../lib/uiTokens.js";
 
-export default function ContributionChart() {
-  const data = [
-    { name: "Rohan", value: 6000, color: "#000" },
-    { name: "Alex", value: 4500, color: "#333" },
-    { name: "You", value: 3200, color: "#666" },
-    { name: "Sarah", value: 1800, color: "#999" },
-  ];
+export default function ContributionChart({ data: liveData }) {
+  const data = (liveData?.length ? liveData : []).map((item) => ({
+    name: item.name,
+    value: Math.abs(item.netBalance || item.paid || 0),
+  }));
 
-  const max = 7000;
+  const max = Math.max(...data.map((item) => item.value), 1);
   const total = data.reduce((a, b) => a + b.value, 0);
-  const avg = total / data.length;
-  const imbalance = Math.round(((data[0].value - data[data.length - 1].value) / avg) * 100);
+  const avg = total / Math.max(data.length, 1);
+  const imbalance = data.length > 1 ? Math.round(((data[0].value - data[data.length - 1].value) / Math.max(avg, 1)) * 100) : 0;
 
   return (
     <div className={cardBase}>
@@ -40,6 +38,7 @@ export default function ContributionChart() {
             </div>
           </div>
         ))}
+        {data.length === 0 && <p className="text-sm text-gray-400">No contribution data yet.</p>}
       </div>
 
       <div className="mt-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50/50 border border-red-100">

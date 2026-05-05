@@ -6,10 +6,16 @@ const serif = "font-serif text-black tracking-tight";
 
 
 
-export default function SplitPreview({ amount, people, splitType, customShares, onCustomChange }) {
+export default function SplitPreview({ amount, people, splitType, customShares, onCustomChange, recommendedShares }) {
   const shares = useMemo(() => {
     const total = parseFloat(amount) || 0;
     if (!people.length || total <= 0) return [];
+    if (recommendedShares?.length && splitType !== "custom") {
+      return people.map((person) => {
+        const backendShare = recommendedShares.find((share) => String(share.user) === String(person.id));
+        return { ...person, share: backendShare?.share || 0 };
+      });
+    }
 
     if (splitType === "equal") {
       const each = total / people.length;
@@ -38,7 +44,7 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
     }
 
     return people.map((p) => ({ ...p, share: 0 }));
-  }, [amount, people, splitType, customShares]);
+  }, [amount, people, splitType, customShares, recommendedShares]);
 
   const allocated = shares.reduce((s, p) => s + p.share, 0);
   const total = parseFloat(amount) || 0;

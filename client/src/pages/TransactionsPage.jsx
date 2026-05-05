@@ -2,9 +2,9 @@ import React, { useState, useMemo } from "react";
 import FilterBar from "../components/FilterBar.jsx";
 import Navbar from "../components/Navbar.jsx";
 import TransactionItem from "../components/TransactionItem.jsx";
-import { GROUPS, PEOPLE } from "../lib/transactionFilters.js";
 import SummaryStats from "../sections/Transaction/SummaryStats.jsx";
 import TransactionDetailModal from "../sections/Transaction/TransactionDetailModal.jsx";
+import { useLiveData } from "../context/LiveDataContext.jsx";
 
 function InsightBadge({ text }) {
   return (
@@ -160,12 +160,19 @@ const TRANSACTIONS = [
    MAIN TRANSACTIONS PAGE
    ───────────────────────────────────────────── */
 export default function TransactionsPage() {
+  const { transactions, expenseTransactions } = useLiveData();
   const [filters, setFilters] = useState({ group: "All Groups", person: "All People" });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const allTransactions = useMemo(() => [...expenseTransactions, ...transactions], [expenseTransactions, transactions]);
+  const groupOptions = useMemo(() => ["All Groups", ...new Set(allTransactions.map((item) => item.group).filter(Boolean))], [allTransactions]);
+  const peopleOptions = useMemo(() => ["All People", ...new Set(allTransactions.flatMap((item) => [
+    item.payer,
+    ...(item.breakdown || []).map((entry) => entry.name),
+  ]).filter(Boolean))], [allTransactions]);
 
   const filtered = useMemo(() => {
-    return TRANSACTIONS.filter((t) => {
+    return allTransactions.filter((t) => {
       const groupMatch = filters.group === "All Groups" || t.group === filters.group;
       const personMatch = filters.person === "All People" || t.payer === filters.person || t.breakdown.some((b) => b.name === filters.person);
       const normalizedQuery = searchQuery.toLowerCase();
@@ -176,7 +183,7 @@ export default function TransactionsPage() {
         t.breakdown.some((b) => b.name.toLowerCase().includes(normalizedQuery));
       return groupMatch && personMatch && searchMatch;
     });
-  }, [filters, searchQuery]);
+  }, [allTransactions, filters, searchQuery]);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -189,7 +196,7 @@ export default function TransactionsPage() {
 
       <main className="max-w-4xl mx-auto px-6 pt-24 pb-8 flex flex-col gap-8">
         {/* Summary Stats */}
-        <SummaryStats transactions={TRANSACTIONS} />
+        <SummaryStats transactions={allTransactions} />
 
         {/* Filters */}
         <FilterBar
@@ -198,6 +205,8 @@ export default function TransactionsPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           resultCount={filtered.length}
+          groups={groupOptions}
+          people={peopleOptions}
         />
 
         {/* Transaction List */}

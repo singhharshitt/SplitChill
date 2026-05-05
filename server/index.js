@@ -9,9 +9,10 @@ const { initSocket } = require("./src/socket/socketHub");
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const SOCKET_CLIENT_URL = CLIENT_URL.split(",").map((origin) => origin.trim());
 const server = http.createServer(app);
 
-initSocket(server, CLIENT_URL);
+initSocket(server, SOCKET_CLIENT_URL);
 
 connectDb()
   .then(() => {

@@ -10,14 +10,15 @@ import { cardBase, serif } from "../../lib/uiTokens.js";
 import ExpenseRow from "./ExpenseRow.jsx";
 import MemberRow from "./MemberRow.jsx";
 
-export default function GroupDetail({ group }) {
+export default function GroupDetail({ group, onSendMessage }) {
   const [messageInput, setMessageInput] = useState("");
   const scrollRef = useRef(null);
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [group.messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!messageInput.trim()) return;
+    await onSendMessage?.(messageInput.trim());
     setMessageInput("");
   };
 
@@ -54,6 +55,7 @@ export default function GroupDetail({ group }) {
             </div>
             <div className="flex flex-col gap-2">
               {group.expenses.map((e) => <ExpenseRow key={e.id} expense={e} />)}
+              {group.expenses.length === 0 && <p className="text-sm text-gray-400">No expenses yet.</p>}
             </div>
           </div>
 

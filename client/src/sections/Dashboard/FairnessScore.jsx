@@ -3,8 +3,7 @@ const cardBase =
 const serifHeading = "font-serif text-black tracking-tight";
 const sansBody = "font-sans text-gray-600";
 
-export default function FairnessScore() {
-  const score = 86;
+export default function FairnessScore({ score = 100, insight = "Your groups are balanced so far." }) {
   const circumference = 2 * Math.PI * 52;
   const offset = circumference - (score / 100) * circumference;
 
@@ -46,14 +45,14 @@ export default function FairnessScore() {
 
         <div className="flex flex-col gap-3">
           <div>
-            <span className="text-sm font-medium text-black">Balanced</span>
+            <span className="text-sm font-medium text-black">{score >= 80 ? "Balanced" : "Needs attention"}</span>
             <p className="text-xs text-gray-500 mt-0.5">
-              You’ve paid more than your share this week.
+              Backend-calculated fairness for your active group.
             </p>
           </div>
           <div className="h-px bg-black/5 w-full" />
           <p className="text-xs text-gray-400 leading-relaxed">
-            Your contributions are 14% above the group average. Consider letting others cover the next few bills.
+            {insight}
           </p>
         </div>
       </div>

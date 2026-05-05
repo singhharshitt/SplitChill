@@ -2,14 +2,7 @@ const cardBase =
   "bg-white rounded-[24px] p-6 md:p-8 shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04] transition-all duration-300 hover:shadow-[0_8px_40px_rgba(0,0,0,0.06)] hover:-translate-y-0.5";
 const serifHeading = "font-serif text-black tracking-tight";
 
-export default function RecentActivity() {
-  const items = [
-    { text: "You paid ₹500 for dinner", meta: "2h ago", type: "out" },
-    { text: "Alex owes you ₹200", meta: "Yesterday", type: "in" },
-    { text: "Goa Trip — Sarah settled ₹1,000", meta: "Yesterday", type: "neutral" },
-    { text: "You added ₹320 to Office Lunch", meta: "3d ago", type: "out" },
-  ];
-
+export default function RecentActivity({ items = [] }) {
   return (
     <div className={cardBase}>
       <h3 className={`${serifHeading} text-2xl mb-6`}>Recent Activity</h3>
@@ -26,6 +19,7 @@ export default function RecentActivity() {
             <span className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">{item.meta}</span>
           </div>
         ))}
+        {items.length === 0 && <p className="text-sm text-gray-400">No recent activity yet.</p>}
       </div>
     </div>
   );

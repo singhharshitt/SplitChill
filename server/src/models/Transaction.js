@@ -7,6 +7,15 @@ const transactionSchema = new mongoose.Schema(
     receiver: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true, min: 0.01 },
     status: { type: String, enum: ["pending", "completed", "cancelled"], default: "completed" },
+    paymentMethod: { type: String, enum: ["upi", "manual"], default: "manual" },
+    upi: {
+      payeeVpa: { type: String, trim: true },
+      payeeName: { type: String, trim: true },
+      deepLink: { type: String },
+      providerReference: { type: String, trim: true },
+      initiatedAt: { type: Date },
+      confirmedAt: { type: Date },
+    },
     note: { type: String, trim: true, maxlength: 240 },
   },
   { timestamps: true },
@@ -14,5 +23,6 @@ const transactionSchema = new mongoose.Schema(
 
 transactionSchema.index({ payer: 1, createdAt: -1 });
 transactionSchema.index({ receiver: 1, createdAt: -1 });
+transactionSchema.index({ group: 1, status: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Transaction", transactionSchema);

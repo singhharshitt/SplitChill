@@ -1,7 +1,7 @@
 import { serif } from "../lib/uiTokens.js";
 import { GROUPS, PEOPLE } from "../lib/transactionFilters.js";
 
-export default function FilterBar({ filters, onFilterChange, searchQuery, onSearchChange, resultCount }) {
+export default function FilterBar({ filters, onFilterChange, searchQuery, onSearchChange, resultCount, groups = GROUPS, people = PEOPLE }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -26,7 +26,7 @@ export default function FilterBar({ filters, onFilterChange, searchQuery, onSear
 
         {/* Group Filter */}
         <div className="flex items-center gap-2">
-          {GROUPS.map((g) => (
+          {groups.map((g) => (
             <button
               key={g}
               onClick={() => onFilterChange("group", g)}
@@ -43,7 +43,7 @@ export default function FilterBar({ filters, onFilterChange, searchQuery, onSear
 
         {/* Person Filter */}
         <div className="flex items-center gap-2">
-          {PEOPLE.map((p) => (
+          {people.map((p) => (
             <button
               key={p}
               onClick={() => onFilterChange("person", p)}

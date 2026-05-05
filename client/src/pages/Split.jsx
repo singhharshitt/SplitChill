@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AmountInput from "../sections/Split/AmountInput";
 import PeopleSelector from "../sections/Split/PeopleSelector";
 import SplitTypeSelector from "../sections/Split/SplitTypeSelector";
@@ -6,6 +6,9 @@ import SplitPreview from "../sections/Split/DynamicSplitPreview";
 import AIInsightCard from "../sections/Split/AIInsightCard";
 import FairnessIndicator from "../sections/Split/FiarnesIndicator";
 import Navbar from "../components/Navbar.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useLiveData } from "../context/LiveDataContext.jsx";
+import fairimage from '../assets/fairimage.png'
 /* ─────────────────────────────────────────────
    8. DOODLE ILLUSTRATION  (Hand-drawn SVG)
    ───────────────────────────────────────────── */
@@ -47,14 +50,15 @@ function DoodleIllustration() {
   );
 }
 
-function SplitCTA({ disabled }) {
+function SplitCTA({ disabled, onClick, isSaving }) {
   return (
     <button
       type="button"
       disabled={disabled}
+      onClick={onClick}
       className="w-full rounded-full bg-black px-6 py-4 text-sm font-medium text-white shadow-lg shadow-black/5 transition-all duration-300 hover:bg-gray-800 hover:scale-[1.01] disabled:cursor-not-allowed disabled:bg-black/20 disabled:shadow-none disabled:hover:scale-100"
     >
-      Create Split
+      {isSaving ? "Creating..." : "Create Split"}
     </button>
   );
 }
@@ -63,20 +67,83 @@ function SplitCTA({ disabled }) {
    MAIN SPLIT PAGE
    ───────────────────────────────────────────── */
 export default function Split() {
+  const { user } = useAuth();
+  const { selectedGroup, addExpense, recommendSplit } = useLiveData();
   const [amount, setAmount] = useState("");
-  const [people, setPeople] = useState([
-    { id: 1, name: "You", initial: "Y" },
-    { id: 2, name: "Alex", initial: "A" },
-  ]);
+  const [extraPeople, setExtraPeople] = useState([]);
+  const [removedPeople, setRemovedPeople] = useState([]);
   const [splitType, setSplitType] = useState("equal");
   const [customShares, setCustomShares] = useState({});
+  const [recommendation, setRecommendation] = useState(null);
+  const [feedback, setFeedback] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const groupPeople = useMemo(() => (selectedGroup?.members || []).map((member) => ({
+    id: member.id,
+    name: member.name,
+    initial: member.avatar,
+  })), [selectedGroup]);
+  const people = useMemo(() => [
+    ...groupPeople.filter((person) => !removedPeople.includes(person.id)),
+    ...extraPeople,
+  ], [extraPeople, groupPeople, removedPeople]);
+  const ready = parseFloat(amount) > 0 && people.length > 0;
 
-  const handleAddPerson = (person) => setPeople((p) => [...p, person]);
-  const handleRemovePerson = (id) => setPeople((p) => p.filter((x) => x.id !== id));
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecommendation() {
+      if (!ready || !selectedGroup) {
+        setRecommendation(null);
+        return;
+      }
+      try {
+        const result = await recommendSplit(selectedGroup.id, {
+          amount: Number(amount),
+          splitType: mapSplitType(splitType),
+          participants: people.map((person) => ({ user: person.id, share: Number(customShares[person.id] || 0) })),
+        });
+        if (!cancelled) setRecommendation(result);
+      } catch {
+        if (!cancelled) setRecommendation(null);
+      }
+    }
+    loadRecommendation();
+    return () => { cancelled = true; };
+  }, [amount, customShares, people, ready, recommendSplit, selectedGroup, splitType]);
+
+  const handleAddPerson = (person) => setExtraPeople((p) => [...p, person]);
+  const handleRemovePerson = (id) => {
+    if (groupPeople.some((person) => person.id === id)) {
+      setRemovedPeople((current) => [...current, id]);
+      return;
+    }
+    setExtraPeople((current) => current.filter((person) => person.id !== id));
+  };
   const handleCustomChange = (id, val) =>
     setCustomShares((s) => ({ ...s, [id]: val }));
 
-  const ready = parseFloat(amount) > 0 && people.length > 0;
+  const handleCreateSplit = async () => {
+    if (!selectedGroup || !user) {
+      setFeedback("Create or select a group first.");
+      return;
+    }
+    setIsSaving(true);
+    setFeedback("");
+    try {
+      await addExpense(selectedGroup.id, {
+        title: "New split",
+        amount: Number(amount),
+        paidBy: user._id,
+        splitType: mapSplitType(splitType),
+        participants: people.map((person) => ({ user: person.id, share: Number(customShares[person.id] || 0) })),
+      });
+      setAmount("");
+      setFeedback("Split created and synced.");
+    } catch (error) {
+      setFeedback(error.response?.data?.message || "Could not create split.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30">
@@ -116,6 +183,7 @@ export default function Split() {
               splitType={splitType}
               customShares={customShares}
               onCustomChange={handleCustomChange}
+              recommendedShares={recommendation?.shares}
             />
           </section>
         )}
@@ -136,12 +204,22 @@ export default function Split() {
 
         {/* CTA */}
         <section>
-          <SplitCTA disabled={!ready} />
+          <SplitCTA disabled={!ready || isSaving} onClick={handleCreateSplit} isSaving={isSaving} />
+          {feedback && <p className="text-center text-xs text-gray-500 mt-3">{feedback}</p>}
         </section>
 
         {/* Doodle */}
-        <DoodleIllustration />
+        <img src={fairimage}/>
       </main>
     </div>
   );
+}
+
+function mapSplitType(type) {
+  return {
+    ai: "ai-recommended",
+    income: "income-based",
+    custom: "custom",
+    equal: "equal",
+  }[type] || "equal";
 }

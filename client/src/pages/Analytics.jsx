@@ -4,6 +4,7 @@ import ContributionChart from "../sections/Analytics/ContributionChart";
 import PredictionsSection from "../sections/Analytics/PredictionsSection";
 import ConflictAlertsSection from "../sections/Analytics/ConflictAletsSection";
 import Navbar from '../components/Navbar.jsx';
+import { useLiveData } from "../context/LiveDataContext.jsx";
 function InsightBadge({ text }) {
   return (
     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-black/5 shadow-sm">
@@ -14,6 +15,11 @@ function InsightBadge({ text }) {
 }
 
 export default function AnalyticsPage() {
+  const { selectedGroup } = useLiveData();
+  const analytics = selectedGroup?.analytics;
+  const suggestions = selectedGroup?.suggestions;
+  const fairness = selectedGroup?.fairness;
+
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30">
       {/* Header */}
@@ -26,13 +32,13 @@ export default function AnalyticsPage() {
       </nav> */}
       <Navbar/>
       <main className="max-w-6xl mx-auto px-6 pt-24 pb-10 flex flex-col gap-10">
-        <FairnessScoreCard/>
+        <FairnessScoreCard fairness={fairness} trend={analytics?.fairnessTrend}/>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <PaymentUsageChart/>
-          <ContributionChart/>
+          <PaymentUsageChart people={analytics?.paymentVsUsage}/>
+          <ContributionChart data={analytics?.contributionImbalance}/>
         </div>
-        <PredictionsSection/>
-        <ConflictAlertsSection/>
+        <PredictionsSection suggestions={suggestions}/>
+        <ConflictAlertsSection suggestions={suggestions} groupName={selectedGroup?.name}/>
         <div className="flex flex-wrap gap-3 justify-center pt-6 pb-10">
           <InsightBadge text="Your contribution is above group average" />
           <InsightBadge text="3 groups trending toward fairness" />

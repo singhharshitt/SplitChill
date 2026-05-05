@@ -16,4 +16,15 @@ async function createMessage(groupId, senderId, text, metadata = {}) {
   return populated;
 }
 
-module.exports = { createMessage };
+async function getMessages(groupId, userId) {
+  const group = await Group.findById(groupId);
+  if (!group) throw new AppError("Group not found", 404);
+  ensureMembership(group, userId);
+
+  return ChatMessage.find({ group: groupId })
+    .sort({ createdAt: 1 })
+    .limit(100)
+    .populate("sender", "name email");
+}
+
+module.exports = { createMessage, getMessages };

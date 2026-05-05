@@ -42,6 +42,13 @@ async function getGroupById(groupId, userId) {
   return group;
 }
 
+async function getGroups(userId) {
+  return Group.find({ "members.user": userId })
+    .sort({ updatedAt: -1 })
+    .populate("owner", "name email income")
+    .populate("members.user", "name email income stats");
+}
+
 async function addMember(groupId, actorId, { userId }) {
   const group = await Group.findById(groupId);
   if (!group) throw new AppError("Group not found", 404);
@@ -70,4 +77,5 @@ module.exports = {
   createGroup,
   ensureMembership,
   getGroupById,
+  getGroups,
 };

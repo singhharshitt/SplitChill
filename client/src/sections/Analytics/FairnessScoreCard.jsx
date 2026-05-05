@@ -10,24 +10,18 @@ const sans = "font-sans text-gray-600";
 
 
 
-export default function FairnessScoreCard() {
-  const score = 86;
+export default function FairnessScoreCard({ fairness, trend }) {
+  const score = fairness?.score ?? 100;
   const circumference = 2 * Math.PI * 70;
   const offset = circumference - (score / 100) * circumference;
 
-  const trendData = [
-    { day: "Mon", score: 72 },
-    { day: "Tue", score: 74 },
-    { day: "Wed", score: 78 },
-    { day: "Thu", score: 76 },
-    { day: "Fri", score: 82 },
-    { day: "Sat", score: 84 },
-    { day: "Sun", score: 86 },
-  ];
+  const trendData = trend?.length
+    ? trend.slice(-7).map((item) => ({ day: new Date(item.at).toLocaleDateString([], { weekday: "short" }), score: item.score }))
+    : [{ day: "Now", score }];
 
   const maxScore = 100;
   const points = trendData.map((d, i) => {
-    const x = (i / (trendData.length - 1)) * 280;
+    const x = trendData.length === 1 ? 140 : (i / (trendData.length - 1)) * 280;
     const y = 80 - (d.score / maxScore) * 70;
     return `${x},${y}`;
   });
@@ -95,7 +89,7 @@ export default function FairnessScoreCard() {
               {trendData.map((d, i) => (
                 <circle
                   key={i}
-                  cx={(i / (trendData.length - 1)) * 280}
+                  cx={trendData.length === 1 ? 140 : (i / (trendData.length - 1)) * 280}
                   cy={80 - (d.score / maxScore) * 70}
                   r="3.5"
                   fill={i === trendData.length - 1 ? mint : "white"}

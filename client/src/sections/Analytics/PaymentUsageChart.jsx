@@ -1,15 +1,14 @@
 
 import { cardBase, sans, serif } from "../../lib/uiTokens.js";
 
-export default function PaymentUsageChart() {
-  const people = [
-    { name: "You", paid: 3200, used: 2800 },
-    { name: "Alex", paid: 4500, used: 4200 },
-    { name: "Rohan", paid: 6000, used: 3800 },
-    { name: "Sarah", paid: 1800, used: 3100 },
-  ];
+export default function PaymentUsageChart({ people: livePeople }) {
+  const people = (livePeople?.length ? livePeople : []).map((person) => ({
+    name: person.name,
+    paid: person.paid,
+    used: person.share,
+  }));
 
-  const maxVal = 7000;
+  const maxVal = Math.max(...people.flatMap((person) => [person.paid, person.used]), 1);
   return (
     <div className={cardBase}>
       <div className="flex items-start justify-between mb-8">
@@ -70,6 +69,7 @@ export default function PaymentUsageChart() {
             </div>
           );
         })}
+        {people.length === 0 && <p className="text-sm text-gray-400">No analytics data yet.</p>}
       </div>
 
       <div className="mt-6 pt-5 border-t border-black/5 flex items-start gap-3">

@@ -1,10 +1,9 @@
 const cardBase =
   "bg-white rounded-[24px] p-6 md:p-8 shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04] transition-all duration-300 hover:shadow-[0_8px_40px_rgba(0,0,0,0.06)] hover:-translate-y-0.5";
 
-export default function AISuggestion() {
+export default function AISuggestion({ suggestion, groupName }) {
   return (
     <div className={`${cardBase} relative overflow-hidden bg-[#FAFAF8]`}>
-
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-[#A3FDA7]/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-[#A3FDA7]/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -20,7 +19,9 @@ export default function AISuggestion() {
           <div>
             <span className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-semibold">AI Insight</span>
             <p className="text-base text-black mt-1 leading-relaxed max-w-md">
-              You should settle <span className="font-serif text-emerald-700">₹320</span> with Rohan to restore fairness in <span className="font-serif">Flatmates</span>.
+              {suggestion ? (
+                <>You should settle <span className="font-serif text-emerald-700">Rs {suggestion.amount}</span> with {suggestion.receiverName} to restore fairness in <span className="font-serif">{groupName || "this group"}</span>.</>
+              ) : "No settlement suggestion is needed right now."}
             </p>
           </div>
         </div>
