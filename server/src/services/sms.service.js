@@ -20,9 +20,13 @@ function preview(message) {
   return String(message || "").slice(0, 180);
 }
 
-function nextRetryDate(attempts) {
+function getSmsRetryDelayMs(attempts) {
   const minutes = Math.min(60, Math.pow(2, attempts));
-  return new Date(Date.now() + minutes * 60 * 1000);
+  return minutes * 60 * 1000;
+}
+
+function nextRetryDate(attempts) {
+  return new Date(Date.now() + getSmsRetryDelayMs(attempts));
 }
 
 async function sendSms({ recipient, message, purpose, user, group, payment, transaction, metadata = {} }) {
@@ -170,4 +174,5 @@ module.exports = {
   sendSms,
   startOtp,
   verifyOtp,
+  getSmsRetryDelayMs,
 };
