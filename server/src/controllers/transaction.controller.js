@@ -12,8 +12,13 @@ const confirmPayment = asyncHandler(async (req, res) => {
 });
 
 const getTransactions = asyncHandler(async (req, res) => {
-  const transactions = await transactionService.getTransactions(req.user._id, req.query.groupId);
-  res.json({ success: true, data: { transactions } });
+  const result = await transactionService.getTransactions(req.user._id, {
+    groupId: req.query.groupId,
+    limit: req.query.limit,
+    cursor: req.query.cursor,
+    status: req.query.status
+  });
+  res.json({ success: true, data: result });
 });
 
 module.exports = { confirmPayment, getTransactions, settle };
