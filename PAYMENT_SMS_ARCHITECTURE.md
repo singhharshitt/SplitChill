@@ -110,6 +110,8 @@ NODE_ENV=development
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/splitchill
 MONGODB_URI=mongodb://127.0.0.1:27017/splitchill
+MONGO_FALLBACK_URI=mongodb://127.0.0.1:27017/splitchill
+MONGO_DEV_FALLBACK=true
 CLIENT_URL=http://localhost:5173
 JWT_SECRET=replace-with-a-strong-random-secret
 JWT_REFRESH_SECRET=replace-with-a-different-strong-random-secret
@@ -130,7 +132,7 @@ SMS_RETRY_INTERVAL_MS=120000
 SMS_MAX_ATTEMPTS=5
 ```
 
-In production, the env loader requires Hyperswitch and Textbee secrets. Development can run with a dev Hyperswitch response when no API key is present.
+In production, the env loader requires Hyperswitch and Textbee secrets. Development can run with a dev Hyperswitch response when no API key is present. If a development `.env` points to Atlas and the current IP is not whitelisted, the server falls back to `MONGO_FALLBACK_URI`; production never falls back.
 
 ## 5. Service Layer
 

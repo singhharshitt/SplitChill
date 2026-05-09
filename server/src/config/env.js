@@ -4,11 +4,13 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(5000),
   CLIENT_URL: z.string().default("http://localhost:5173"),
-  JWT_SECRET: z.string().min(16),
+  JWT_SECRET: z.string().min(16).optional(),
   JWT_REFRESH_SECRET: z.string().min(16).optional(),
   MONGO_URI: z.string().optional(),
   MONGODB_URI: z.string().optional(),
   DB_URI: z.string().optional(),
+  MONGO_FALLBACK_URI: z.string().optional(),
+  MONGO_DEV_FALLBACK: z.string().optional(),
   REDIS_URL: z.string().optional(),
   SOCKET_REDIS_URL: z.string().optional(),
   HYPERSWITCH_BASE_URL: z.string().url().default("https://sandbox.hyperswitch.io"),
@@ -33,11 +35,31 @@ function validateEnv() {
     const details = parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ");
     throw new Error(`Invalid environment: ${details}`);
   }
+  const isProduction = parsed.data.NODE_ENV === "production";
+
+  if (!isProduction && !parsed.data.JWT_SECRET) {
+    process.env.JWT_SECRET = "dev_split_chill_secret";
+    parsed.data.JWT_SECRET = process.env.JWT_SECRET;
+  }
+
+  if (!isProduction && !parsed.data.JWT_REFRESH_SECRET) {
+    process.env.JWT_REFRESH_SECRET = "dev_split_chill_refresh_secret";
+    parsed.data.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+  }
+
+  if (!isProduction && !parsed.data.MONGO_URI && !parsed.data.MONGODB_URI && !parsed.data.DB_URI) {
+    process.env.MONGO_URI = "mongodb://127.0.0.1:27017/splitchill";
+    parsed.data.MONGO_URI = process.env.MONGO_URI;
+  }
+
   if (!parsed.data.MONGO_URI && !parsed.data.MONGODB_URI && !parsed.data.DB_URI) {
     throw new Error("Invalid environment: one of MONGO_URI, MONGODB_URI, or DB_URI is required");
   }
-  if (parsed.data.NODE_ENV === "production") {
+
+  if (isProduction) {
     const required = [
+      "JWT_SECRET",
+      "JWT_REFRESH_SECRET",
       "HYPERSWITCH_API_KEY",
       "HYPERSWITCH_WEBHOOK_SECRET",
       "TEXTBEE_API_KEY",

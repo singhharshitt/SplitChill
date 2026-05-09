@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-// ── Reusable Input Field ──────────────────────────────────────────────
+
 function InputField({ label, type = "text", placeholder, value, onChange, autoComplete }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -21,7 +21,6 @@ function InputField({ label, type = "text", placeholder, value, onChange, autoCo
   );
 }
 
-// ── Auth Tabs ─────────────────────────────────────────────────────────
 function AuthTabs({ activeTab, onChange }) {
   return (
     <div className="flex bg-[#F5F5F0] rounded-2xl p-1 mb-7">
@@ -43,7 +42,6 @@ function AuthTabs({ activeTab, onChange }) {
   );
 }
 
-// ── Google Icon ───────────────────────────────────────────────────────
 function GoogleIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24">
@@ -55,7 +53,6 @@ function GoogleIcon() {
   );
 }
 
-// ── Animated Form Panel ───────────────────────────────────────────────
 function AnimatedPanel({ visible, children }) {
   const [rendered, setRendered] = useState(visible);
   const [animating, setAnimating] = useState(false);
@@ -98,24 +95,38 @@ function AnimatedPanel({ visible, children }) {
   );
 }
 
-// ── Auth Card ─────────────────────────────────────────────────────────
 function AuthCard({ activeTab, setActiveTab }) {
   const { login, signup } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: "", email: "", password: "", confirm: "",
+    name: "",
+    email: "",
+    password: "",
+    confirm: "",
   });
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const set = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
   const isLogin = activeTab === "login";
 
-  const handleSubmit = async (event) => {
+  async function handleSubmit(event) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError("");
 
     if (!form.email.trim() || !form.password.trim()) {
       setError("Email and password are required.");
+      return;
+    }
+
+    if (!isLogin && !form.name.trim()) {
+      setError("Full name is required.");
+      return;
+    }
+
+    if (form.password.trim().length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
 
@@ -124,21 +135,28 @@ function AuthCard({ activeTab, setActiveTab }) {
       return;
     }
 
-    const result = isLogin ? await login(form) : await signup(form);
-    if (result.success) {
-      navigate("/dashboard", { replace: true });
-      return;
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim(),
+      };
+      const result = isLogin ? await login(payload) : await signup(payload);
+      if (result.success) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      setError(result.error || "Authentication failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setError(result.error || "Authentication failed. Please try again.");
-  };
+  }
 
   return (
     <div className="bg-white rounded-[28px] p-8 border border-black/[0.06] shadow-sm hover:shadow-md transition-shadow duration-400 w-full max-w-[400px]">
-
       <AuthTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      {/* Login Form */}
       <AnimatedPanel visible={isLogin}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <InputField
@@ -152,7 +170,7 @@ function AuthCard({ activeTab, setActiveTab }) {
           <InputField
             label="Password"
             type="password"
-            placeholder="••••••••"
+            placeholder="........"
             value={form.password}
             onChange={set("password")}
             autoComplete="current-password"
@@ -166,8 +184,12 @@ function AuthCard({ activeTab, setActiveTab }) {
 
           {error && <p className="text-xs text-red-600">{error}</p>}
 
-          <button type="submit" className="w-full py-3.5 bg-black text-white rounded-2xl text-sm font-semibold tracking-[0.01em] hover:bg-black/85 hover:scale-[1.015] active:scale-[0.99] transition-all duration-200 mt-1">
-            Split Fairly →
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3.5 bg-black text-white rounded-2xl text-sm font-semibold tracking-[0.01em] hover:bg-black/85 hover:scale-[1.015] active:scale-[0.99] transition-all duration-200 mt-1 disabled:opacity-60 disabled:hover:scale-100"
+          >
+            {isSubmitting ? "Signing in..." : "Split Fairly ->"}
           </button>
 
           <div className="flex items-center gap-3 my-1">
@@ -193,7 +215,6 @@ function AuthCard({ activeTab, setActiveTab }) {
         </p>
       </AnimatedPanel>
 
-      {/* Signup Form */}
       <AnimatedPanel visible={!isLogin}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
           <InputField
@@ -214,7 +235,7 @@ function AuthCard({ activeTab, setActiveTab }) {
           <InputField
             label="Password"
             type="password"
-            placeholder="••••••••"
+            placeholder="At least 8 characters"
             value={form.password}
             onChange={set("password")}
             autoComplete="new-password"
@@ -222,7 +243,7 @@ function AuthCard({ activeTab, setActiveTab }) {
           <InputField
             label="Confirm password"
             type="password"
-            placeholder="••••••••"
+            placeholder="Repeat password"
             value={form.confirm}
             onChange={set("confirm")}
             autoComplete="new-password"
@@ -230,8 +251,12 @@ function AuthCard({ activeTab, setActiveTab }) {
 
           {error && <p className="text-xs text-red-600">{error}</p>}
 
-          <button type="submit" className="w-full py-3.5 bg-black text-white rounded-2xl text-sm font-semibold tracking-[0.01em] hover:bg-black/85 hover:scale-[1.015] active:scale-[0.99] transition-all duration-200 mt-1">
-            Get Started →
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3.5 bg-black text-white rounded-2xl text-sm font-semibold tracking-[0.01em] hover:bg-black/85 hover:scale-[1.015] active:scale-[0.99] transition-all duration-200 mt-1 disabled:opacity-60 disabled:hover:scale-100"
+          >
+            {isSubmitting ? "Creating account..." : "Get Started ->"}
           </button>
 
           <div className="flex items-center gap-3">
@@ -257,7 +282,6 @@ function AuthCard({ activeTab, setActiveTab }) {
         </p>
       </AnimatedPanel>
 
-      {/* Security note */}
       <p className="text-center text-[10px] text-[#C4C4C0] mt-4">
         Your data is encrypted · Payments are secure
       </p>
@@ -265,31 +289,27 @@ function AuthCard({ activeTab, setActiveTab }) {
   );
 }
 
-// ── Left Content ──────────────────────────────────────────────────────
 function AuthLeftContent() {
   return (
     <div className="flex flex-col justify-center lg:pr-12 xl:pr-20">
-
       <div className="flex items-center gap-2.5 mb-14">
-        <span
-          className="font-serif text-2xl text-black tracking-[-0.02em]"
-          
-        >
+        <span className="font-serif text-2xl text-black tracking-[-0.02em]">
           SplitChill
         </span>
       </div>
 
-      {/* Heading */}
       <h1
         className="text-[48px] lg:text-[56px] xl:text-[64px] leading-[1.07] tracking-[-0.025em] text-black mb-6 max-w-[480px]"
         style={{ fontFamily: "'Georgia', 'Playfair Display', serif", fontWeight: 500 }}
       >
-        Start splitting…<br />
+        Start splitting...
+        <br />
         the <em className="italic">fair</em> way.
       </h1>
 
       <p className="text-[15px] text-[#6B7280] leading-[1.7] max-w-[340px] mb-8">
-        No awkward math. No uncomfortable conversations.<br />
+        No awkward math. No uncomfortable conversations.
+        <br />
         Just balance...the way it should be.
       </p>
 
@@ -297,7 +317,6 @@ function AuthLeftContent() {
         Join groups · Track fairness · Let AI handle the rest.
       </p>
 
-      {/* Trust badges */}
       <div className="flex flex-wrap items-center gap-5">
         {[
           { label: "Encrypted payments" },
@@ -314,27 +333,15 @@ function AuthLeftContent() {
   );
 }
 
-
-
-// ── Main Auth Page ────────────────────────────────────────────────────
 export default function AuthPage({ initialTab = "login" }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ backgroundColor: "#F5F5F0" }}
-    >
-      {/* Main content */}
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#F5F5F0" }}>
       <div className="flex-1 flex items-center justify-center px-5 py-12 md:px-10 lg:px-16">
         <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          
-          {/* Left */}
           <AuthLeftContent />
-
-          {/* Right — card + character */}
           <div className="relative flex justify-center lg:justify-end">
-
             <AuthCard activeTab={activeTab} setActiveTab={setActiveTab} />
           </div>
         </div>

@@ -14,7 +14,7 @@ function errorHandler(err, req, res, _next) {
     status: statusCode,
     message: err.message,
     details: err.details,
-    stack: process.env.NODE_ENV === "production" ? undefined : err.stack,
+    stack: process.env.NODE_ENV === "production" || statusCode < 500 ? undefined : err.stack,
   });
   if (process.env.NODE_ENV !== "production" && !err.isOperational) {
     payload.stack = err.stack;
