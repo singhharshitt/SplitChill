@@ -2,12 +2,12 @@ const paymentService = require("../services/payment.service");
 const smsService = require("../services/sms.service");
 const { writeAudit } = require("../services/audit.service");
 const asyncHandler = require("../utils/asyncHandler");
+const AppError = require("../utils/appError");
 
 const initiatePayment = asyncHandler(async (req, res) => {
   const idempotencyKey = req.headers["idempotency-key"];
   if (!idempotencyKey) {
-    res.status(400).json({ success: false, message: "Idempotency-Key header is required" });
-    return;
+    throw new AppError("Idempotency-Key header is required", 400);
   }
   const result = await paymentService.initiatePayment(req.user._id, req.params.transactionId, {
     idempotencyKey,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import FilterBar from "../components/FilterBar.jsx";
 import Navbar from "../components/Navbar.jsx";
 import TransactionItem from "../components/TransactionItem.jsx";
@@ -169,19 +169,21 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   
   // Initialize pagination for transactions
-  const fetchTransactions = async ({ limit, cursor, signal }) => {
+  const fetchTransactions = useCallback(async ({ limit, cursor, signal }) => {
     const data = unwrap(await api.get("/transactions", { params: { limit, cursor }, signal }));
     return {
       items: (data.items || data.transactions || []).map((item) => mapTransaction(item, "")),
       pagination: data.pagination,
     };
-  };
+  }, []);
+  
   const transactionsPagination = usePagination(fetchTransactions, { initialLimit: 20 });
+  const { loadInitial } = transactionsPagination;
 
   // Load initial transactions from LiveData
   useEffect(() => {
-    transactionsPagination.loadInitial();
-  }, []);
+    loadInitial();
+  }, [loadInitial]);
 
   const allTransactions = useMemo(() => transactionsPagination.items, [transactionsPagination.items]);
   const totalSettled = useMemo(() => transactions.reduce((sum, item) => sum + (item.amount || 0), 0), [transactions]);

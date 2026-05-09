@@ -13,19 +13,25 @@ export default function ChatWindow({ chat, onSendMessage }) {
   const scrollRef = useRef(null);
   const [showLoadMore, setShowLoadMore] = useState(false);
   
+  const [prevChatId, setPrevChatId] = useState(null);
+
   // Initialize pagination for messages
   const messagesPagination = usePagination(
     chat ? `/groups/${chat.id}/chat/messages` : null,
     { limit: 30 }
   );
 
-  // Load initial messages from chat prop
-  useEffect(() => {
+  // Derive state from props instead of using useEffect to prevent cascading rerenders
+  if (chat?.id !== prevChatId) {
+    setPrevChatId(chat?.id || null);
+    messagesPagination.clearItems();
     if (chat?.messages && chat.messages.length > 0) {
       messagesPagination.prependItems(chat.messages);
       setShowLoadMore(true);
+    } else {
+      setShowLoadMore(false);
     }
-  }, [chat?.id]);
+  }
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
 

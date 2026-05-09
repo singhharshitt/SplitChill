@@ -9,6 +9,7 @@
  */
 
 const assert = require('assert');
+const { describe, it } = require('node:test');
 
 // ─────────────────────────────────────────
 // Test Utilities

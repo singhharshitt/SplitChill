@@ -52,11 +52,14 @@ export default function PaymentStatusPanel({ transaction, onPaymentUpdate }) {
     return "Pay with Hyperswitch";
   }, [isStarting, status]);
 
+  const rawId = raw?._id;
+
   const startPayment = useCallback(async () => {
+    if (!rawId) return;
     setIsStarting(true);
     setError("");
     try {
-      const data = await initiateTransactionPayment(raw._id, { currency: "INR" });
+      const data = await initiateTransactionPayment(rawId, { currency: "INR" });
       setPaymentState(data.payment);
       const checkoutUrl = data.checkout?.checkoutUrl;
       if (checkoutUrl) window.location.assign(checkoutUrl);
@@ -65,7 +68,7 @@ export default function PaymentStatusPanel({ transaction, onPaymentUpdate }) {
     } finally {
       setIsStarting(false);
     }
-  }, [raw?._id]);
+  }, [rawId]);
 
   const requestOtp = async () => {
     setError("");

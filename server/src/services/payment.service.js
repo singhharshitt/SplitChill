@@ -55,6 +55,22 @@ function verifyHyperswitchSignature(rawBody, signature) {
   return received.length === expected.length && crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected));
 }
 
+function getWebhookTimestamp(headers = {}, payload = {}) {
+  const value = headers["x-webhook-timestamp"] || headers["x-hyperswitch-timestamp"] || headers["x-event-timestamp"] || payload.created || payload.created_at;
+  if (!value) return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric > 1000000000000 ? numeric : numeric * 1000;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isHyperswitchReplay(headers = {}, payload = {}, now = Date.now()) {
+  const toleranceMs = Number(process.env.HYPERSWITCH_WEBHOOK_TOLERANCE_MS || 5 * 60 * 1000);
+  const timestamp = getWebhookTimestamp(headers, payload);
+  if (!timestamp) return false;
+  return Math.abs(now - timestamp) > toleranceMs;
+}
+
 async function createHyperswitchPaymentIntent({ payment, transaction, group }) {
   if (!process.env.HYPERSWITCH_API_KEY) {
     if (process.env.NODE_ENV === "production") throw new AppError("Hyperswitch API key is not configured", 500);
@@ -197,6 +213,7 @@ async function handleHyperswitchWebhook({ rawBody, headers, payload }) {
   const eventId = extractProviderEventId(payload, rawBody);
   const signatureValid = verifyHyperswitchSignature(rawBody, headers["x-webhook-signature-512"]);
   if (!signatureValid) throw new AppError("Invalid Hyperswitch webhook signature", 401);
+  if (isHyperswitchReplay(headers, payload)) throw new AppError("Stale Hyperswitch webhook rejected", 401);
 
   let webhookLog = await WebhookLog.findOneAndUpdate(
     { provider: "hyperswitch", eventId },
@@ -224,7 +241,12 @@ async function handleHyperswitchWebhook({ rawBody, headers, payload }) {
   }
 
   const existingEvent = await PaymentEvent.findOne({ provider: "hyperswitch", providerEventId: eventId });
-  if (existingEvent) return { duplicate: true };
+  if (existingEvent) {
+    webhookLog.status = "processed";
+    webhookLog.processedAt = new Date();
+    await webhookLog.save();
+    return { duplicate: true };
+  }
 
   const previousStatus = payment.status;
   const eventType = payload.event_type || payload.type || object.event_type || "payment_event";
@@ -318,5 +340,8 @@ module.exports = {
   getPaymentEvents,
   getPayments,
   handleHyperswitchWebhook,
+  hyperswitchStatusToLocal,
   initiatePayment,
+  isHyperswitchReplay,
+  verifyHyperswitchSignature,
 };
