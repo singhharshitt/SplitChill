@@ -38,5 +38,6 @@ const groupSchema = new mongoose.Schema(
 );
 
 groupSchema.index({ "members.user": 1 });
+groupSchema.index({ owner: 1, updatedAt: -1 });
 
 module.exports = mongoose.model("Group", groupSchema);

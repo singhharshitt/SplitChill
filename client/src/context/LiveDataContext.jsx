@@ -7,6 +7,19 @@ import { mapGroup, mapMessage, mapTransaction, userIdOf } from "../lib/liveDataT
 
 const LiveDataContext = createContext(null);
 
+function mergeById(items, nextItem) {
+  const nextId = userIdOf(nextItem);
+  if (!nextId) return items;
+  const withoutExisting = items.filter((item) => userIdOf(item) !== nextId);
+  return [...withoutExisting, nextItem];
+}
+
+function prependById(items, nextItem) {
+  const nextId = userIdOf(nextItem);
+  if (!nextId) return items;
+  return [nextItem, ...items.filter((item) => userIdOf(item) !== nextId)];
+}
+
 export function LiveDataProvider({ children }) {
   const { isLoggedIn, user } = useAuth();
   const currentUserId = userIdOf(user);
@@ -36,8 +49,7 @@ export function LiveDataProvider({ children }) {
 
     const group = unwrap(groupRes).group;
     setRawGroups((existing) => {
-      const without = existing.filter((item) => userIdOf(item) !== userIdOf(group));
-      return [group, ...without];
+      return prependById(existing, group);
     });
     setGroupExtras((existing) => ({
       ...existing,
@@ -87,7 +99,8 @@ export function LiveDataProvider({ children }) {
     if (!isLoggedIn) return undefined;
     const socket = connectSocket();
     const groupIds = rawGroups.map((group) => userIdOf(group)).filter(Boolean);
-    groupIds.forEach((groupId) => socket.emit("group:join", groupId));
+    const joinGroups = () => groupIds.forEach((groupId) => socket.emit("group:join", groupId));
+    joinGroups();
 
     const refreshPayloadGroup = (payload) => {
       if (payload?.groupId) {
@@ -101,26 +114,38 @@ export function LiveDataProvider({ children }) {
         ...existing,
         [payload.groupId]: {
           ...(existing[payload.groupId] || {}),
-          messages: [...(existing[payload.groupId]?.messages || []), payload.message],
+          messages: mergeById(existing[payload.groupId]?.messages || [], payload.message),
         },
       }));
     };
+    const upsertTransaction = (payload) => {
+      if (payload?.transaction) {
+        setTransactions((existing) => prependById(existing, mapTransaction(payload.transaction, currentUserId)));
+      }
+      if (payload?.groupId) refreshGroup(payload.groupId);
+    };
 
+    socket.on("connect", joinGroups);
     socket.on("expense:added", refreshPayloadGroup);
     socket.on("split:updated", refreshPayloadGroup);
     socket.on("fairness:changed", refreshPayloadGroup);
     socket.on("group:updated", refreshPayloadGroup);
     socket.on("chat:message", appendMessage);
+    socket.on("transaction:created", upsertTransaction);
+    socket.on("transaction:updated", upsertTransaction);
 
     return () => {
       groupIds.forEach((groupId) => socket.emit("group:leave", groupId));
+      socket.off("connect", joinGroups);
       socket.off("expense:added", refreshPayloadGroup);
       socket.off("split:updated", refreshPayloadGroup);
       socket.off("fairness:changed", refreshPayloadGroup);
       socket.off("group:updated", refreshPayloadGroup);
       socket.off("chat:message", appendMessage);
+      socket.off("transaction:created", upsertTransaction);
+      socket.off("transaction:updated", upsertTransaction);
     };
-  }, [isLoggedIn, rawGroups, refreshGroup, refreshTransactions]);
+  }, [currentUserId, isLoggedIn, rawGroups, refreshGroup, refreshTransactions]);
 
   const groups = useMemo(() => rawGroups.map((group) => mapGroup(group, currentUserId, groupExtras[userIdOf(group)])), [currentUserId, groupExtras, rawGroups]);
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) || groups[0] || null;
@@ -138,7 +163,7 @@ export function LiveDataProvider({ children }) {
       ...existing,
       [groupId]: {
         ...(existing[groupId] || {}),
-        expenses: [data.expense, ...(existing[groupId]?.expenses || [])],
+        expenses: prependById(existing[groupId]?.expenses || [], data.expense),
         fairness: data.fairness,
       },
     }));
@@ -152,7 +177,7 @@ export function LiveDataProvider({ children }) {
       ...existing,
       [groupId]: {
         ...(existing[groupId] || {}),
-        messages: [...(existing[groupId]?.messages || []), data.message],
+        messages: mergeById(existing[groupId]?.messages || [], data.message),
       },
     }));
     return mapMessage(data.message, currentUserId);
@@ -161,6 +186,26 @@ export function LiveDataProvider({ children }) {
   const recommendSplit = async (groupId, payload) => {
     const data = unwrap(await api.post(`/groups/${groupId}/recommend-split`, payload));
     return data.recommendation;
+  };
+
+  const settleUp = async (payload) => {
+    const data = unwrap(await api.post("/settle", payload));
+    if (data.transaction) {
+      setTransactions((existing) => prependById(existing, mapTransaction(data.transaction, currentUserId)));
+    }
+    if (payload.groupId) await refreshGroup(payload.groupId);
+    return data;
+  };
+
+  const confirmPayment = async (transactionId, payload) => {
+    const data = unwrap(await api.patch(`/transactions/${transactionId}/confirm`, payload));
+    if (data.transaction) {
+      setTransactions((existing) => prependById(existing, mapTransaction(data.transaction, currentUserId)));
+    }
+    if (data.transaction?.raw?.group?._id || data.transaction?.group?._id) {
+      await refreshGroup(userIdOf(data.transaction.raw?.group || data.transaction.group));
+    }
+    return data;
   };
 
   const value = {
@@ -175,6 +220,8 @@ export function LiveDataProvider({ children }) {
     addExpense,
     sendMessage,
     recommendSplit,
+    settleUp,
+    confirmPayment,
     refreshGroups,
     refreshGroup,
     refreshTransactions,

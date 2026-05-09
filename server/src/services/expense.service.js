@@ -15,6 +15,7 @@ async function addExpense(groupId, actorId, payload) {
   ensureMembership(group, paidBy);
 
   const participants = normalizeParticipants(payload.participants, group);
+  assertCustomShares(payload.amount, participants, payload.splitType);
   const shares = calculateShares({
     amount: payload.amount,
     participants,
@@ -45,6 +46,14 @@ async function addExpense(groupId, actorId, payload) {
   emitToGroup(group._id, "split:updated", { groupId: group._id, expenseId: expense._id, participants: shares });
 
   return { expense: populatedExpense, fairness };
+}
+
+function assertCustomShares(amount, participants, splitType) {
+  if (splitType !== "custom") return;
+  const total = participants.reduce((sum, participant) => sum + Number(participant.share || 0), 0);
+  if (Math.abs(total - Number(amount)) > 0.01) {
+    throw new AppError("Custom shares must add up to the expense amount", 400);
+  }
 }
 
 async function getExpenses(groupId, userId) {

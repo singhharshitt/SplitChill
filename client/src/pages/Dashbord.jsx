@@ -1,5 +1,4 @@
 import ChatBot from "../context/Chatbot";
-import hero from "../assets/hero.png";
 import dasb from '../assets/dasb.png';
 import RecentActivity from "../sections/Dashboard/RecentActivity";
 import ActiveGroups from "../sections/Dashboard/ActiveGroups";

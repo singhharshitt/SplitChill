@@ -79,8 +79,14 @@ const schemas = {
     receiverUpiId: z.string().trim().regex(/^[\w.\-]{2,}@[a-zA-Z]{2,}[\w.\-]*$/, "Invalid UPI id").optional(),
   }),
   confirmPayment: z.object({
-    status: z.enum(["completed", "cancelled"]).default("completed"),
+    status: z.enum(["completed", "cancelled", "failed"]).default("completed"),
     providerReference: z.string().trim().max(120).optional(),
+  }),
+  transactionQuery: z.object({
+    groupId: objectId.optional(),
+  }),
+  idParam: z.object({
+    id: objectId,
   }),
   chatMessage: z.object({
     text: z.string().trim().min(1).max(1000),

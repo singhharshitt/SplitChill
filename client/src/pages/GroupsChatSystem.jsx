@@ -333,7 +333,7 @@ export default function GroupsChatSystem() {
           )
         ) : (
           <div className="h-full">
-            {selectedChat ? <ChatWindow chat={selectedChat} /> : (
+            {selectedChat ? <ChatWindow chat={selectedChat} onSendMessage={(text) => sendMessage(selectedChat.id, text)} /> : (
               <div className="h-full flex items-center justify-center bg-white rounded-[24px] shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04]">
                 <div className="text-center">
                   <div className="w-16 h-16 rounded-full bg-black/[0.03] flex items-center justify-center mx-auto mb-4">

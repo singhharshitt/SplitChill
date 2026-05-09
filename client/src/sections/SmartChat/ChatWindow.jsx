@@ -7,11 +7,18 @@ import SystemBubble from "../../components/SystemBubble.jsx";
 import TextBubble from "../../components/TextBubble.jsx";
 import { serif } from "../../lib/uiTokens.js";
 
-export default function ChatWindow({ chat }) {
+export default function ChatWindow({ chat, onSendMessage }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [chat.messages]);
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text) return;
+    await onSendMessage?.(text);
+    setInput("");
+  };
 
   if (!chat) {
     return (
@@ -74,11 +81,11 @@ export default function ChatWindow({ chat }) {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && setInput("")}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Message or ask about fairness..."
             className="flex-1 bg-[#FAFAF8] rounded-2xl px-5 py-3 text-sm outline-none focus:ring-1 focus:ring-[#A3FDA7]/30 transition-all placeholder:text-gray-400"
           />
-          <button className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-black/10">
+          <button onClick={handleSend} className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-black/10">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
           </button>
         </div>

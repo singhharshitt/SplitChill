@@ -18,6 +18,7 @@ async function recommendSplit(groupId, userId, { amount, participants, splitType
   ensureMembership(group, userId);
 
   const normalizedParticipants = normalizeParticipants(participants, group);
+  assertCustomShares(amount, normalizedParticipants, splitType);
   const shares = calculateShares({
     amount,
     participants: normalizedParticipants,
@@ -34,6 +35,14 @@ async function recommendSplit(groupId, userId, { amount, participants, splitType
     })),
     projectedFairness: projectFairness(group, shares, amount),
   };
+}
+
+function assertCustomShares(amount, participants, splitType) {
+  if (splitType !== "custom") return;
+  const total = participants.reduce((sum, participant) => sum + Number(participant.share || 0), 0);
+  if (Math.abs(total - Number(amount)) > 0.01) {
+    throw new AppError("Custom shares must add up to the expense amount", 400);
+  }
 }
 
 function normalizeParticipants(participants, group) {

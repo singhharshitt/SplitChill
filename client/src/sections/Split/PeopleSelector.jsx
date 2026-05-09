@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 const serif = "font-serif text-black tracking-tight";
 
-export default function PeopleSelector({ people, onAdd, onRemove }) {
+export default function PeopleSelector({ people, onAdd, onRemove, allowAdd = true }) {
   const [name, setName] = useState("");
   const [showInput, setShowInput] = useState(false);
 
@@ -36,7 +36,7 @@ export default function PeopleSelector({ people, onAdd, onRemove }) {
           </div>
         ))}
 
-        {showInput ? (
+        {allowAdd && showInput ? (
           <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
             <input
               autoFocus
@@ -53,7 +53,7 @@ export default function PeopleSelector({ people, onAdd, onRemove }) {
               ✓
             </button>
           </div>
-        ) : (
+        ) : allowAdd ? (
           <button
             onClick={() => setShowInput(true)}
             className="w-10 h-10 rounded-full border border-dashed border-black/20 flex items-center justify-center text-gray-400 hover:text-black hover:border-black/40 hover:bg-black/[0.02] transition-all duration-300"
@@ -62,7 +62,7 @@ export default function PeopleSelector({ people, onAdd, onRemove }) {
               <path d="M12 5v14M5 12h14" />
             </svg>
           </button>
-        )}
+        ) : null}
       </div>
 
       {people.length === 0 && (

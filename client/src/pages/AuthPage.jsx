@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import fairimage from '../assets/fairimage.png';
 // ── Reusable Input Field ──────────────────────────────────────────────
 function InputField({ label, type = "text", placeholder, value, onChange, autoComplete }) {
   return (

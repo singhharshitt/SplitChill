@@ -19,6 +19,8 @@ export default function AnalyticsPage() {
   const analytics = selectedGroup?.analytics;
   const suggestions = selectedGroup?.suggestions;
   const fairness = selectedGroup?.fairness;
+  const topContributor = analytics?.paymentVsUsage?.slice().sort((a, b) => b.paid - a.paid)[0];
+  const settlementCount = suggestions?.suggestions?.length || 0;
 
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30">
@@ -40,9 +42,9 @@ export default function AnalyticsPage() {
         <PredictionsSection suggestions={suggestions}/>
         <ConflictAlertsSection suggestions={suggestions} groupName={selectedGroup?.name}/>
         <div className="flex flex-wrap gap-3 justify-center pt-6 pb-10">
-          <InsightBadge text="Your contribution is above group average" />
-          <InsightBadge text="3 groups trending toward fairness" />
-          <InsightBadge text="Next predicted settlement: Friday" />
+          <InsightBadge text={`${selectedGroup?.name || "Selected group"} fairness score: ${fairness?.score ?? selectedGroup?.fairnessScore ?? 100}`} />
+          {topContributor && <InsightBadge text={`${topContributor.name} has paid Rs ${topContributor.paid.toLocaleString()}`} />}
+          <InsightBadge text={`${settlementCount} suggested settlement${settlementCount === 1 ? "" : "s"} from live balances`} />
         </div>
       </main>
     </div>

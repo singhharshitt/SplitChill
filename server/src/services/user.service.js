@@ -1,16 +1,21 @@
 const User = require("../models/User");
 
+function escapeRegex(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function getMe(user) {
   return user.toSafeObject();
 }
 
 async function searchUsers(query, requesterId) {
+  const safeQuery = escapeRegex(query).slice(0, 80);
   const filter = query
     ? {
         _id: { $ne: requesterId },
         $or: [
-          { name: { $regex: query, $options: "i" } },
-          { email: { $regex: query, $options: "i" } },
+          { name: { $regex: safeQuery, $options: "i" } },
+          { email: { $regex: safeQuery, $options: "i" } },
         ],
       }
     : { _id: { $ne: requesterId } };

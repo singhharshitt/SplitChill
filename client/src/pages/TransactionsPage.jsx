@@ -165,6 +165,8 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const allTransactions = useMemo(() => [...expenseTransactions, ...transactions], [expenseTransactions, transactions]);
+  const totalSettled = useMemo(() => transactions.reduce((sum, item) => sum + (item.amount || 0), 0), [transactions]);
+  const totalExpense = useMemo(() => expenseTransactions.reduce((sum, item) => sum + (item.amount || 0), 0), [expenseTransactions]);
   const groupOptions = useMemo(() => ["All Groups", ...new Set(allTransactions.map((item) => item.group).filter(Boolean))], [allTransactions]);
   const peopleOptions = useMemo(() => ["All People", ...new Set(allTransactions.flatMap((item) => [
     item.payer,
@@ -224,9 +226,9 @@ export default function TransactionsPage() {
 
         {/* AI Insights */}
         <div className="flex flex-wrap gap-3 justify-center pt-6 pb-10">
-          <InsightBadge text="You've paid more than average this month" />
-          <InsightBadge text="Most expenses are from dining out" />
-          <InsightBadge text="3 settlements improved fairness this week" />
+          <InsightBadge text={`${expenseTransactions.length} live expense records`} />
+          <InsightBadge text={`Rs ${totalExpense.toLocaleString()} tracked across groups`} />
+          <InsightBadge text={`Rs ${totalSettled.toLocaleString()} settled`} />
         </div>
       </main>
 

@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
-import api, { getApiError, TOKEN_KEY, unwrap, USER_KEY } from '../api/client.js';
+import api, { getApiError, REFRESH_TOKEN_KEY, TOKEN_KEY, unwrap, USER_KEY } from '../api/client.js';
 
 const AuthContext = createContext(null);
 
@@ -13,9 +13,10 @@ const getStoredUser = () => {
   try {
     return JSON.parse(storedUser);
   } catch {
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-    return null;
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      return null;
   }
 };
 
@@ -43,6 +44,7 @@ export function AuthProvider({ children }) {
       } catch {
         if (cancelled) return;
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
         setUser(null);
         setIsLoggedIn(false);
@@ -63,6 +65,7 @@ export function AuthProvider({ children }) {
       }));
 
       localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
       setIsLoggedIn(true);
@@ -82,6 +85,7 @@ export function AuthProvider({ children }) {
       }));
 
       localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
       setIsLoggedIn(true);
@@ -92,7 +96,9 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    api.post('/auth/logout').catch(() => {});
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setUser(null);
     setIsLoggedIn(false);

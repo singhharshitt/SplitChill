@@ -60,6 +60,32 @@ function calculateShares({ amount, participants, members, splitType }) {
     };
   });
 
+  if (splitType === "custom") {
+    const customTotal = selectedMembers.reduce((sum, item) => sum + Number(item.participant.share || 0), 0);
+    if (Math.abs(roundMoney(customTotal) - roundMoney(amount)) > 0.01) {
+      const fallbackShare = roundMoney(amount / Math.max(selectedMembers.length, 1));
+      let allocatedFallback = 0;
+      return selectedMembers.map((item, index) => {
+        const isLast = index === selectedMembers.length - 1;
+        const share = isLast ? roundMoney(amount - allocatedFallback) : fallbackShare;
+        allocatedFallback += share;
+        return {
+          user: item.userId,
+          share: Math.max(0, share),
+          weight: 1,
+          usage: item.participant.usage ?? 1,
+        };
+      });
+    }
+
+    return selectedMembers.map((item) => ({
+      user: item.userId,
+      share: roundMoney(item.participant.share || 0),
+      weight: 1,
+      usage: item.participant.usage ?? 1,
+    }));
+  }
+
   const averageIncome = selectedMembers.reduce((sum, item) => {
     return sum + (item.member?.incomeSnapshot || 0);
   }, 0) / Math.max(selectedMembers.length, 1);

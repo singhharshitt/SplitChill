@@ -6,7 +6,7 @@ const transactionSchema = new mongoose.Schema(
     payer: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     receiver: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true, min: 0.01 },
-    status: { type: String, enum: ["pending", "completed", "cancelled"], default: "completed" },
+    status: { type: String, enum: ["pending", "completed", "cancelled", "failed"], default: "completed" },
     paymentMethod: { type: String, enum: ["upi", "manual"], default: "manual" },
     upi: {
       payeeVpa: { type: String, trim: true },

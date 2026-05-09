@@ -5,20 +5,16 @@ import ToggleSwitch from "../components/ToggleSwitch.jsx";
 import Navbar from "../components/Navbar.jsx";
 import IncomeSettings from "../sections/ProfileSetting/IncomeSetting.jsx";
 import SecuritySetting from "../sections/ProfileSetting/SecuritySetting.jsx";
-
 const cardBase =
   "bg-white rounded-[24px] p-6 md:p-8 shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04] transition-all duration-300 hover:shadow-[0_8px_40px_rgba(0,0,0,0.06)] hover:-translate-y-0.5";
 const serif = "font-serif text-black tracking-tight";
 const sans = "font-sans text-gray-600";
-
-
 function AIInsightCard({ text, small }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 100);
     return () => clearTimeout(t);
   }, []);
-
   return (
     <div
       className={`
@@ -64,13 +60,10 @@ function PreferencesPanel() {
     { key: "ai", label: "AI Recommended", desc: "Smart fairness-based splits", star: true },
     { key: "custom", label: "Custom", desc: "You decide every time" },
   ];
-
   return (
     <div className={cardBase}>
       <h3 className={`${serif} text-2xl mb-2`}>Preferences</h3>
       <p className={`${sans} text-sm mb-6`}>Choose how SplitChill works for you.</p>
-
-      {/* Default Split */}
       <div className="mb-6">
         <label className="text-[10px] uppercase tracking-widest text-gray-500 font-medium mb-3 block">
           Default Split Type
@@ -102,10 +95,7 @@ function PreferencesPanel() {
           ))}
         </div>
       </div>
-
       <div className="h-px bg-black/5 mb-6" />
-
-      {/* Notifications */}
       <div>
         <label className="text-[10px] uppercase tracking-widest text-gray-500 font-medium mb-3 block">
           Notifications
@@ -134,8 +124,6 @@ function PreferencesPanel() {
     </div>
   );
 }
-
-
 function FloatingSplitButton() {
   return (
     <button className="fixed bottom-8 right-8 z-50 px-6 py-3.5 rounded-full bg-black text-white text-sm font-medium shadow-2xl shadow-black/20 hover:scale-105 hover:shadow-black/30 transition-all duration-300 flex items-center gap-2">
@@ -146,11 +134,9 @@ function FloatingSplitButton() {
     </button>
   );
 }
-
 export default function ProfileSettingsPage() {
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30 pb-24">
-      {/* Header */}
       <Navbar />
       <nav className="max-w-3xl mx-auto px-6 pt-24 pb-2 flex items-center justify-between">
         <div>
@@ -158,37 +144,22 @@ export default function ProfileSettingsPage() {
           <p className={`${sans} text-sm mt-1`}>Your fairness calibration center.</p>
         </div>
       </nav>
-
       <main className="max-w-3xl mx-auto px-6 py-10 flex flex-col gap-8">
-        {/* Profile */}
         <ProfileCard />
-
-        {/* Income */}
         <IncomeSettings />
-
-        {/* Payment Methods */}
         <PaymentMethod />
-
-        {/* Security */}
         <SecuritySetting />
-
-        {/* Preferences */}
         <PreferencesPanel />
-
-        {/* AI Insights strip */}
         <div className="flex flex-wrap gap-3 justify-center pt-4">
           <AIInsightCard text="AI splits are currently optimized for your profile" small />
           <AIInsightCard text="You usually prefer equal splits — try AI for better fairness" small />
         </div>
-
-        {/* Save CTA */}
         <div className="flex justify-center pt-6">
           <button className="px-10 py-3.5 rounded-full bg-black text-white text-sm font-medium hover:scale-[1.02] hover:shadow-xl transition-all duration-300 shadow-lg shadow-black/5">
             Update Fairness Settings
           </button>
         </div>
       </main>
-
       <FloatingSplitButton />
     </div>
   );

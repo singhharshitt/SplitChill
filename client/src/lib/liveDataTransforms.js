@@ -109,7 +109,12 @@ export function mapTransaction(transaction, currentUserId) {
     splitType: null,
     splitLogic: transaction.note || "Direct settlement to clear outstanding balance.",
     fairnessScore: transaction.group?.fairnessScore || 100,
-    fairnessContext: "This settlement is reflected in the backend fairness engine.",
+    fairnessContext: transaction.status === "pending"
+      ? "This settlement is pending confirmation before it changes fairness balances."
+      : "This settlement is reflected in the backend fairness engine.",
+    status: transaction.status || "completed",
+    paymentMethod: transaction.paymentMethod || "manual",
+    upi: transaction.upi,
     breakdown: [
       { name: payerName, share: -money(transaction.amount), paid: money(transaction.amount), net: -money(transaction.amount) },
       { name: receiverName, share: money(transaction.amount), paid: 0, net: money(transaction.amount) },

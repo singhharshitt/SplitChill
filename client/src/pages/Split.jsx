@@ -9,9 +9,7 @@ import Navbar from "../components/Navbar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLiveData } from "../context/LiveDataContext.jsx";
 import fairimage from '../assets/fairimage.png'
-/* ─────────────────────────────────────────────
-   8. DOODLE ILLUSTRATION  (Hand-drawn SVG)
-   ───────────────────────────────────────────── */
+
 function DoodleIllustration() {
   return (
     <div className="flex justify-center py-8 opacity-80">
@@ -63,9 +61,7 @@ function SplitCTA({ disabled, onClick, isSaving }) {
   );
 }
 
-/* ─────────────────────────────────────────────
-   MAIN SPLIT PAGE
-   ───────────────────────────────────────────── */
+
 export default function Split() {
   const { user } = useAuth();
   const { selectedGroup, addExpense, recommendSplit } = useLiveData();
@@ -86,7 +82,10 @@ export default function Split() {
     ...groupPeople.filter((person) => !removedPeople.includes(person.id)),
     ...extraPeople,
   ], [extraPeople, groupPeople, removedPeople]);
-  const ready = parseFloat(amount) > 0 && people.length > 0;
+  const customTotal = useMemo(() => people.reduce((sum, person) => sum + Number(customShares[person.id] || 0), 0), [customShares, people]);
+  const amountValue = Number(amount);
+  const customReady = splitType !== "custom" || Math.abs(customTotal - amountValue) < 0.01;
+  const ready = amountValue > 0 && people.length > 0 && customReady;
 
   useEffect(() => {
     let cancelled = false;
@@ -97,7 +96,7 @@ export default function Split() {
       }
       try {
         const result = await recommendSplit(selectedGroup.id, {
-          amount: Number(amount),
+          amount: amountValue,
           splitType: mapSplitType(splitType),
           participants: people.map((person) => ({ user: person.id, share: Number(customShares[person.id] || 0) })),
         });
@@ -108,7 +107,7 @@ export default function Split() {
     }
     loadRecommendation();
     return () => { cancelled = true; };
-  }, [amount, customShares, people, ready, recommendSplit, selectedGroup, splitType]);
+  }, [amountValue, customShares, people, ready, recommendSplit, selectedGroup, splitType]);
 
   const handleAddPerson = (person) => setExtraPeople((p) => [...p, person]);
   const handleRemovePerson = (id) => {
@@ -131,7 +130,7 @@ export default function Split() {
     try {
       await addExpense(selectedGroup.id, {
         title: "New split",
-        amount: Number(amount),
+        amount: amountValue,
         paidBy: user._id,
         splitType: mapSplitType(splitType),
         participants: people.map((person) => ({ user: person.id, share: Number(customShares[person.id] || 0) })),
@@ -147,34 +146,29 @@ export default function Split() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-sans selection:bg-[#A3FDA7]/30">
-      {/* Minimal header */}
-      {/* <nav className="max-w-2xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">
-        <h1 className="font-serif text-2xl text-black tracking-tight">SplitChill</h1>
-        <span className="text-xs text-gray-400 uppercase tracking-widest">New Split</span>
-      </nav> */}
+
       <Navbar/>
 
       <main className="max-w-2xl mx-auto px-6 pt-24 pb-10 flex flex-col gap-14">
-        {/* Step 1 */}
+        {!selectedGroup && (
+          <p className="text-center text-sm text-gray-500">Create or select a group before adding a split.</p>
+        )}
         <section>
           <AmountInput value={amount} onChange={setAmount} />
         </section>
-
-        {/* Step 2 */}
         <section>
           <PeopleSelector
             people={people}
             onAdd={handleAddPerson}
             onRemove={handleRemovePerson}
+            allowAdd={false}
           />
+          <p className="text-xs text-gray-400 mt-3">Add new people from a group before including them in a production split.</p>
         </section>
-
-        {/* Step 3 */}
         <section>
           <SplitTypeSelector active={splitType} onSelect={setSplitType} />
         </section>
 
-        {/* Dynamic Preview */}
         {ready && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <SplitPreview
@@ -205,10 +199,11 @@ export default function Split() {
         {/* CTA */}
         <section>
           <SplitCTA disabled={!ready || isSaving} onClick={handleCreateSplit} isSaving={isSaving} />
+          {splitType === "custom" && amountValue > 0 && !customReady && (
+            <p className="text-center text-xs text-red-500 mt-3">Custom shares must add up to Rs {amountValue.toLocaleString()}.</p>
+          )}
           {feedback && <p className="text-center text-xs text-gray-500 mt-3">{feedback}</p>}
         </section>
-
-        {/* Doodle */}
         <img src={fairimage}/>
       </main>
     </div>
