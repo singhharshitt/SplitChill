@@ -26,15 +26,21 @@ export default function GroupDetail({ group, onSendMessage }) {
     { limit: 25 }
   );
 
-  // Load initial data from group prop
-  useEffect(() => {
+  const [prevGroupId, setPrevGroupId] = useState(null);
+
+  // Derive state from props instead of using useEffect to prevent cascading rerenders
+  if (group?.id !== prevGroupId) {
+    setPrevGroupId(group?.id || null);
+    messagesPagination.clearItems();
+    expensesPagination.clearItems();
+    
     if (group?.messages && group.messages.length > 0) {
       messagesPagination.prependItems(group.messages);
     }
     if (group?.expenses && group.expenses.length > 0) {
       expensesPagination.prependItems(group.expenses);
     }
-  }, [group?.id]);
+  }
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
 
