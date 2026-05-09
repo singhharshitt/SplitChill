@@ -23,6 +23,7 @@ const Group = require("../models/Group");
 const WebhookLog = require("../models/WebhookLog");
 const AppError = require("../utils/appError");
 const { emitToGroup } = require("../socket/socketHub");
+const { enqueueSms } = require("../queues/sms.queue");
 const smsService = require("./sms.service");
 
 const HYPERSWITCH_BASE_URL = process.env.HYPERSWITCH_BASE_URL || "https://sandbox.hyperswitch.io";
@@ -155,7 +156,7 @@ async function initiatePayment(actorId, transactionId, { idempotencyKey, currenc
 
   emitToGroup(group._id, "payment:initiated", { groupId: group._id, payment: sanitizePayment(payment), transactionId: transaction._id });
   if (transaction.payer.phone) {
-    await smsService.sendSms({
+    await enqueueSms({
       recipient: transaction.payer.phone,
       message: `SplitChill payment started for INR ${transaction.amount}. It will be marked paid only after gateway confirmation.`,
       purpose: "payment_initiated",
@@ -254,7 +255,7 @@ async function handleHyperswitchWebhook({ rawBody, headers, payload }) {
   const { applyProviderPaymentResult } = require("./transaction.service");
   if (nextStatus === "succeeded") {
     await applyProviderPaymentResult({ transactionId: payment.transaction, providerReference: providerPaymentId, status: "succeeded" });
-    await smsService.sendSms({
+    await enqueueSms({
       recipient: (await require("../models/User").findById(payment.payer).select("phone"))?.phone,
       message: `SplitChill payment of INR ${payment.amount} succeeded and your group balances were updated.`,
       purpose: "payment_success",
@@ -265,7 +266,7 @@ async function handleHyperswitchWebhook({ rawBody, headers, payload }) {
     });
   } else if (["failed", "cancelled"].includes(nextStatus)) {
     await applyProviderPaymentResult({ transactionId: payment.transaction, providerReference: providerPaymentId, status: "failed" });
-    await smsService.sendSms({
+    await enqueueSms({
       recipient: (await require("../models/User").findById(payment.payer).select("phone"))?.phone,
       message: `SplitChill payment of INR ${payment.amount} failed. Please retry or settle manually.`,
       purpose: "payment_failed",

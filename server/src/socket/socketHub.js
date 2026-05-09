@@ -1,34 +1,28 @@
+const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
+const { createRedisPubSubClients } = require("../config/redis");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const Group = require("../models/Group");
+
 let io = null;
 
-async function attachRedisAdapter(socketServer) {
-  const redisUrl = process.env.SOCKET_REDIS_URL || process.env.REDIS_URL;
-  if (!redisUrl) return;
-  try {
-    const { createAdapter } = require("@socket.io/redis-adapter");
-    const { createClient } = require("redis");
-    const pubClient = createClient({ url: redisUrl });
-    const subClient = pubClient.duplicate();
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    socketServer.adapter(createAdapter(pubClient, subClient));
-    console.log("Socket.io Redis adapter connected");
-  } catch (error) {
-    console.warn("Socket.io Redis adapter unavailable; continuing with in-memory adapter", error.message);
-  }
-}
-
 function initSocket(server, corsOrigin) {
-  const { Server } = require("socket.io");
-  const jwt = require("jsonwebtoken");
-  const Group = require("../models/Group");
-  const User = require("../models/User");
-
   io = new Server(server, {
     cors: {
       origin: corsOrigin,
       methods: ["GET", "POST"],
     },
   });
-  attachRedisAdapter(io);
+
+  const { pubClient, subClient } = createRedisPubSubClients();
+  
+  Promise.all([pubClient.ping(), subClient.ping()]).then(() => {
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log("Socket.io Redis adapter connected successfully");
+  }).catch((err) => {
+    console.error("Failed to connect Socket.io Redis adapter", err);
+  });
 
   io.use(async (socket, next) => {
     try {

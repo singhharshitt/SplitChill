@@ -20,6 +20,11 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   server:
     image: node:20-alpine
@@ -37,6 +42,8 @@ services:
       CLIENT_URL: http://localhost:5173
       JWT_SECRET: local-dev-secret-change-me
       REDIS_URL: redis://redis:6379
+      SOCKET_REDIS_URL: redis://redis:6379
+      QUEUE_PREFIX: splitchill_q
       HYPERSWITCH_BASE_URL: http://host.docker.internal:8080
       HYPERSWITCH_API_KEY: dev-hyperswitch-api-key
       HYPERSWITCH_WEBHOOK_SECRET: dev-hyperswitch-webhook-secret
