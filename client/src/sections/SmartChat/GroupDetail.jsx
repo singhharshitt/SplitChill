@@ -9,16 +9,41 @@ import TextBubble from "../../components/TextBubble.jsx";
 import { cardBase, serif } from "../../lib/uiTokens.js";
 import ExpenseRow from "./ExpenseRow.jsx";
 import MemberRow from "./MemberRow.jsx";
+import usePagination from "../../hooks/usePagination.js";
 
 export default function GroupDetail({ group, onSendMessage }) {
   const [messageInput, setMessageInput] = useState("");
   const scrollRef = useRef(null);
+  
+  // Initialize pagination for messages and expenses
+  const messagesPagination = usePagination(
+    group ? `/groups/${group.id}/chat/messages` : null,
+    { limit: 30 }
+  );
+  
+  const expensesPagination = usePagination(
+    group ? `/groups/${group.id}/expenses` : null,
+    { limit: 25 }
+  );
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [group.messages]);
+  // Load initial data from group prop
+  useEffect(() => {
+    if (group?.messages && group.messages.length > 0) {
+      messagesPagination.prependItems(group.messages);
+    }
+    if (group?.expenses && group.expenses.length > 0) {
+      expensesPagination.prependItems(group.expenses);
+    }
+  }, [group?.id]);
+
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
 
   const handleSend = async () => {
     if (!messageInput.trim()) return;
-    await onSendMessage?.(messageInput.trim());
+    const newMessage = await onSendMessage?.(messageInput.trim());
+    if (newMessage) {
+      messagesPagination.appendItems([newMessage]);
+    }
     setMessageInput("");
   };
 
@@ -54,8 +79,17 @@ export default function GroupDetail({ group, onSendMessage }) {
               <button className="text-xs text-gray-400 hover:text-black transition-colors">View all</button>
             </div>
             <div className="flex flex-col gap-2">
-              {group.expenses.map((e) => <ExpenseRow key={e.id} expense={e} />)}
-              {group.expenses.length === 0 && <p className="text-sm text-gray-400">No expenses yet.</p>}
+              {expensesPagination.items.map((e) => <ExpenseRow key={e.id} expense={e} />)}
+              {expensesPagination.items.length === 0 && <p className="text-sm text-gray-400">No expenses yet.</p>}
+              {expensesPagination.hasMore && (
+                <button
+                  onClick={() => expensesPagination.loadMore()}
+                  disabled={expensesPagination.isFetching}
+                  className="mt-3 text-xs font-medium text-gray-600 hover:text-black disabled:opacity-50 transition-colors"
+                >
+                  {expensesPagination.isFetching ? "Loading..." : "Load More Expenses"}
+                </button>
+              )}
             </div>
           </div>
 
@@ -72,7 +106,7 @@ export default function GroupDetail({ group, onSendMessage }) {
             <h3 className={`${serif} text-lg mb-3`}>Group Chat</h3>
             <div ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col gap-3 px-1 pb-2">
               <SecurityBadge />
-              {group.messages.map((msg) => {
+              {messagesPagination.items.map((msg) => {
                 switch (msg.type) {
                   case "text": return <TextBubble key={msg.id} message={msg} />;
                   case "expense": return <ExpenseBubble key={msg.id} message={msg} />;

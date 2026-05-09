@@ -7,8 +7,12 @@ const addExpense = asyncHandler(async (req, res) => {
 });
 
 const getExpenses = asyncHandler(async (req, res) => {
-  const expenses = await expenseService.getExpenses(req.params.id, req.user._id);
-  res.json({ success: true, data: { expenses } });
+  const result = await expenseService.getExpenses(req.params.id, req.user._id, {
+    limit: req.query.limit,
+    cursor: req.query.cursor,
+    splitType: req.query.splitType
+  });
+  res.json({ success: true, data: result });
 });
 
 module.exports = { addExpense, getExpenses };

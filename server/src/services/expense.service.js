@@ -5,6 +5,7 @@ const AppError = require("../utils/appError");
 const { applyExpenseToGroup, calculateShares } = require("../utils/fairnessEngine");
 const { emitToGroup } = require("../socket/socketHub");
 const { ensureMembership } = require("./group.service");
+const { paginate, buildPaginationResponse } = require("../utils/paginationUtils");
 
 async function addExpense(groupId, actorId, payload) {
   const group = await Group.findById(groupId);
@@ -38,8 +39,8 @@ async function addExpense(groupId, actorId, payload) {
   await Promise.all([group.save(), expense.save(), updateUserStats(expense)]);
 
   const populatedExpense = await Expense.findById(expense._id)
-    .populate("paidBy", "name email")
-    .populate("participants.user", "name email");
+    .populate("paidBy", "name email avatar")
+    .populate("participants.user", "name email avatar");
 
   emitToGroup(group._id, "expense:added", { groupId: group._id, expense: populatedExpense });
   emitToGroup(group._id, "fairness:changed", { groupId: group._id, fairness });
@@ -56,15 +57,37 @@ function assertCustomShares(amount, participants, splitType) {
   }
 }
 
-async function getExpenses(groupId, userId) {
+async function getExpenses(groupId, userId, options = {}) {
+  const { limit = 25, cursor, splitType } = options;
+
   const group = await Group.findById(groupId);
   if (!group) throw new AppError("Group not found", 404);
   ensureMembership(group, userId);
 
-  return Expense.find({ group: groupId })
-    .sort({ createdAt: -1 })
-    .populate("paidBy", "name email")
-    .populate("participants.user", "name email");
+  const pageLimit = Math.min(Math.max(parseInt(limit, 10) || 25, 10), 100);
+
+  let query = Expense.find({ group: groupId });
+
+  if (splitType && ['equal', 'income-based', 'usage-based', 'ai-recommended', 'custom'].includes(splitType)) {
+    query.where('splitType').equals(splitType);
+  }
+
+  query
+    .populate("paidBy", "name email avatar")
+    .populate("participants.user", "name email avatar");
+
+  const { items, hasMore, nextCursor, count } = await paginate(query, {
+    limit: pageLimit,
+    cursor,
+    sortOrder: -1
+  });
+
+  return buildPaginationResponse(
+    items,
+    nextCursor,
+    `/groups/${groupId}/expenses`,
+    pageLimit
+  );
 }
 
 function normalizeParticipants(participants, group) {

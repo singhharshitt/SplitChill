@@ -7,8 +7,11 @@ const createMessage = asyncHandler(async (req, res) => {
 });
 
 const getMessages = asyncHandler(async (req, res) => {
-  const messages = await chatService.getMessages(req.params.id, req.user._id);
-  res.json({ success: true, data: { messages } });
+  const result = await chatService.getMessages(req.params.id, req.user._id, {
+    limit: req.query.limit,
+    cursor: req.query.cursor
+  });
+  res.json({ success: true, data: result });
 });
 
 module.exports = { createMessage, getMessages };

@@ -6,17 +6,36 @@ import SmartActionBubble from "../../components/SmartActionBubble.jsx";
 import SystemBubble from "../../components/SystemBubble.jsx";
 import TextBubble from "../../components/TextBubble.jsx";
 import { serif } from "../../lib/uiTokens.js";
+import usePagination from "../../hooks/usePagination.js";
 
 export default function ChatWindow({ chat, onSendMessage }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
+  const [showLoadMore, setShowLoadMore] = useState(false);
+  
+  // Initialize pagination for messages
+  const messagesPagination = usePagination(
+    chat ? `/groups/${chat.id}/chat/messages` : null,
+    { limit: 30 }
+  );
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [chat.messages]);
+  // Load initial messages from chat prop
+  useEffect(() => {
+    if (chat?.messages && chat.messages.length > 0) {
+      messagesPagination.prependItems(chat.messages);
+      setShowLoadMore(true);
+    }
+  }, [chat?.id]);
+
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
 
   const handleSend = async () => {
     const text = input.trim();
     if (!text) return;
-    await onSendMessage?.(text);
+    const newMessage = await onSendMessage?.(text);
+    if (newMessage) {
+      messagesPagination.appendItems([newMessage]);
+    }
     setInput("");
   };
 
@@ -59,8 +78,19 @@ export default function ChatWindow({ chat, onSendMessage }) {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 bg-[#F5F5F0]">
+        {showLoadMore && messagesPagination.hasMore && (
+          <div className="flex justify-center py-4">
+            <button
+              onClick={() => messagesPagination.loadMore()}
+              disabled={messagesPagination.isFetching}
+              className="px-4 py-2 text-xs font-medium rounded-full bg-black/[0.05] hover:bg-black/[0.08] disabled:opacity-50 transition-colors"
+            >
+              {messagesPagination.isFetching ? "Loading..." : "Load Earlier Messages"}
+            </button>
+          </div>
+        )}
         <SecurityBadge />
-        {chat.messages.map((msg) => {
+        {messagesPagination.items.map((msg) => {
           switch (msg.type) {
             case "text": return <TextBubble key={msg.id} message={msg} />;
             case "expense": return <ExpenseBubble key={msg.id} message={msg} />;

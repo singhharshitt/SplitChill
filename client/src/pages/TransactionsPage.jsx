@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import FilterBar from "../components/FilterBar.jsx";
 import Navbar from "../components/Navbar.jsx";
 import TransactionItem from "../components/TransactionItem.jsx";
 import SummaryStats from "../sections/Transaction/SummaryStats.jsx";
 import TransactionDetailModal from "../sections/Transaction/TransactionDetailModal.jsx";
 import { useLiveData } from "../context/LiveDataContext.jsx";
+import usePagination from "../hooks/usePagination.js";
 
 function InsightBadge({ text }) {
   return (
@@ -164,7 +165,18 @@ export default function TransactionsPage() {
   const [filters, setFilters] = useState({ group: "All Groups", person: "All People" });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const allTransactions = useMemo(() => [...expenseTransactions, ...transactions], [expenseTransactions, transactions]);
+  
+  // Initialize pagination for transactions
+  const transactionsPagination = usePagination("/transactions", { limit: 20 });
+
+  // Load initial transactions from LiveData
+  useEffect(() => {
+    if ((transactions.length > 0 || expenseTransactions.length > 0) && transactionsPagination.items.length === 0) {
+      transactionsPagination.prependItems([...expenseTransactions, ...transactions]);
+    }
+  }, []);
+
+  const allTransactions = useMemo(() => transactionsPagination.items, [transactionsPagination.items]);
   const totalSettled = useMemo(() => transactions.reduce((sum, item) => sum + (item.amount || 0), 0), [transactions]);
   const totalExpense = useMemo(() => expenseTransactions.reduce((sum, item) => sum + (item.amount || 0), 0), [expenseTransactions]);
   const groupOptions = useMemo(() => ["All Groups", ...new Set(allTransactions.map((item) => item.group).filter(Boolean))], [allTransactions]);
@@ -220,6 +232,17 @@ export default function TransactionsPage() {
             <div className="text-center py-16">
               <p className="text-gray-400 font-serif text-xl">No transactions found</p>
               <p className="text-sm text-gray-400 mt-1">Try adjusting your filters.</p>
+            </div>
+          )}
+          {transactionsPagination.hasMore && (
+            <div className="flex justify-center pt-6">
+              <button
+                onClick={() => transactionsPagination.loadMore()}
+                disabled={transactionsPagination.isFetching}
+                className="px-6 py-3 text-sm font-medium rounded-full bg-black/[0.05] hover:bg-black/[0.08] disabled:opacity-50 transition-colors"
+              >
+                {transactionsPagination.isFetching ? "Loading More..." : "Load More Transactions"}
+              </button>
             </div>
           )}
         </div>
