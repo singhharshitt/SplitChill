@@ -35,10 +35,10 @@ async function connectWithDnsFallback(uri) {
 }
 
 async function connectDb() {
-  const uri = process.env.MONGO_URI || process.env.DB_URI;
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.DB_URI;
 
   if (!uri) {
-    throw new Error("Missing MONGO_URI or DB_URI environment variable");
+    throw new Error("Missing MONGO_URI, MONGODB_URI, or DB_URI environment variable");
   }
 
   mongoose.set("strictQuery", true);

@@ -82,6 +82,19 @@ const schemas = {
     status: z.enum(["completed", "cancelled", "failed"]).default("completed"),
     providerReference: z.string().trim().max(120).optional(),
   }),
+  initiatePayment: z.object({
+    currency: z.string().trim().length(3).toUpperCase().optional().default("INR"),
+  }),
+  startOtp: z.object({
+    phone: z.string().trim().regex(/^\+?\d{10,15}$/, "Valid phone number required"),
+  }),
+  verifyOtp: z.object({
+    challengeId: objectId,
+    code: z.string().trim().regex(/^\d{6}$/, "OTP must be 6 digits"),
+  }),
+  transactionIdParam: z.object({
+    transactionId: objectId,
+  }),
   transactionQuery: z.object({
     groupId: objectId.optional(),
   }),

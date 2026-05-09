@@ -1,4 +1,5 @@
 import { serif } from "../../lib/uiTokens.js";
+import PaymentStatusPanel from "../../components/PaymentStatusPanel.jsx";
 
 export default function TransactionDetailModal({ transaction, onClose }) {
   if (!transaction) return null;
@@ -96,6 +97,11 @@ export default function TransactionDetailModal({ transaction, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* Fairness Context */}
+          {isSettlement && (
+            <PaymentStatusPanel transaction={transaction} />
+          )}
 
           {/* Fairness Context */}
           {!isSettlement && (

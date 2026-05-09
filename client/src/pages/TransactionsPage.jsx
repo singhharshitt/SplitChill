@@ -6,6 +6,8 @@ import SummaryStats from "../sections/Transaction/SummaryStats.jsx";
 import TransactionDetailModal from "../sections/Transaction/TransactionDetailModal.jsx";
 import { useLiveData } from "../context/LiveDataContext.jsx";
 import usePagination from "../hooks/usePagination.js";
+import api, { unwrap } from "../api/client.js";
+import { mapTransaction } from "../lib/liveDataTransforms.js";
 
 function InsightBadge({ text }) {
   return (
@@ -167,13 +169,18 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   
   // Initialize pagination for transactions
-  const transactionsPagination = usePagination("/transactions", { limit: 20 });
+  const fetchTransactions = async ({ limit, cursor, signal }) => {
+    const data = unwrap(await api.get("/transactions", { params: { limit, cursor }, signal }));
+    return {
+      items: (data.items || data.transactions || []).map((item) => mapTransaction(item, "")),
+      pagination: data.pagination,
+    };
+  };
+  const transactionsPagination = usePagination(fetchTransactions, { initialLimit: 20 });
 
   // Load initial transactions from LiveData
   useEffect(() => {
-    if ((transactions.length > 0 || expenseTransactions.length > 0) && transactionsPagination.items.length === 0) {
-      transactionsPagination.prependItems([...expenseTransactions, ...transactions]);
-    }
+    transactionsPagination.loadInitial();
   }, []);
 
   const allTransactions = useMemo(() => transactionsPagination.items, [transactionsPagination.items]);

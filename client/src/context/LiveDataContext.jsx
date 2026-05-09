@@ -33,7 +33,7 @@ export function LiveDataProvider({ children }) {
   const refreshTransactions = useCallback(async () => {
     if (!isLoggedIn) return;
     const data = unwrap(await api.get("/transactions"));
-    setTransactions((data.transactions || []).map((item) => mapTransaction(item, currentUserId)));
+    setTransactions((data.items || data.transactions || []).map((item) => mapTransaction(item, currentUserId)));
   }, [currentUserId, isLoggedIn]);
 
   const refreshGroup = useCallback(async (groupId) => {

@@ -12,6 +12,11 @@ const Expense = require('../models/Expense');
 const Transaction = require('../models/Transaction');
 const Group = require('../models/Group');
 const User = require('../models/User');
+const Payment = require('../models/Payment');
+const PaymentEvent = require('../models/PaymentEvent');
+const SmsLog = require('../models/SmsLog');
+const WebhookLog = require('../models/WebhookLog');
+const AuditLog = require('../models/AuditLog');
 
 /**
  * Create all required indexes
@@ -141,6 +146,50 @@ async function createIndexes() {
       { background: true, name: 'status_receiver_createdAt_desc' }
     );
     console.log('✓ Transaction: status + receiver + createdAt');
+
+    await Payment.collection.createIndex(
+      { idempotencyKey: 1 },
+      { background: true, unique: true, name: 'idempotency_unique' }
+    );
+    await Payment.collection.createIndex(
+      { group: 1, createdAt: -1 },
+      { background: true, name: 'payment_group_createdAt_desc' }
+    );
+    await Payment.collection.createIndex(
+      { status: 1, nextRetryAt: 1 },
+      { background: true, name: 'payment_retry_due' }
+    );
+    console.log('✓ Payment: idempotency, group pagination, retry');
+
+    await PaymentEvent.collection.createIndex(
+      { provider: 1, providerEventId: 1 },
+      { background: true, unique: true, name: 'provider_event_unique' }
+    );
+    await PaymentEvent.collection.createIndex(
+      { group: 1, createdAt: -1 },
+      { background: true, name: 'payment_event_group_createdAt_desc' }
+    );
+    console.log('✓ PaymentEvent: provider event uniqueness + pagination');
+
+    await SmsLog.collection.createIndex(
+      { status: 1, nextRetryAt: 1 },
+      { background: true, name: 'sms_retry_due' }
+    );
+    await SmsLog.collection.createIndex(
+      { createdAt: -1 },
+      { background: true, name: 'sms_createdAt_desc' }
+    );
+    console.log('✓ SmsLog: retry + createdAt');
+
+    await WebhookLog.collection.createIndex(
+      { provider: 1, eventId: 1 },
+      { background: true, unique: true, name: 'webhook_provider_event_unique' }
+    );
+    await AuditLog.collection.createIndex(
+      { resourceType: 1, resourceId: 1, createdAt: -1 },
+      { background: true, name: 'audit_resource_createdAt_desc' }
+    );
+    console.log('✓ WebhookLog/AuditLog: lookup indexes');
 
     // ─────────────────────────────────────────
     // Group Indexes
