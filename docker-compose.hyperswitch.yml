@@ -1,0 +1,12 @@
+# SplitChill keeps Hyperswitch as a separately managed self-hosted stack.
+# Start it from the official repo:
+#   git clone https://github.com/juspay/hyperswitch
+#   cd hyperswitch
+#   docker compose --file docker-compose-development.yml up -d
+#
+# Then point server/.env HYPERSWITCH_BASE_URL at http://localhost:8080.
+# This override only documents the network boundary used by SplitChill.
+services:
+  server:
+    environment:
+      HYPERSWITCH_BASE_URL: http://host.docker.internal:8080

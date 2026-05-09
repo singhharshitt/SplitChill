@@ -84,6 +84,9 @@ async function confirmPayment(actorId, transactionId, { status = "completed", pr
   const isParticipant = [transaction.payer, transaction.receiver].some((id) => String(id) === String(actorId));
   if (!isParticipant) throw new AppError("Only settlement participants can update payment status", 403);
   if (transaction.status !== "pending") throw new AppError("Only pending transactions can be confirmed", 409);
+  if (transaction.paymentMethod === "hyperswitch") {
+    throw new AppError("Hyperswitch payments can only be completed by verified server webhooks or reconciliation", 409);
+  }
 
   transaction.status = status;
   if (providerReference) transaction.upi.providerReference = providerReference;
@@ -132,14 +135,15 @@ async function getTransactions(userId, options = {}) {
     });
   }
 
-  if (status && ['pending', 'completed', 'cancelled', 'failed'].includes(status)) {
+  if (status && ['pending', 'processing', 'completed', 'cancelled', 'failed', 'reconciled'].includes(status)) {
     query.where('status').equals(status);
   }
 
   query
     .populate("payer", "name email avatar")
     .populate("receiver", "name email avatar")
-    .populate("group", "name");
+    .populate("group", "name")
+    .populate("payment");
 
   const { items, hasMore, nextCursor, count } = await paginate(query, {
     limit: pageLimit,
@@ -154,7 +158,48 @@ async function getTransactions(userId, options = {}) {
   return buildPaginationResponse(items, nextCursor, endpoint, pageLimit);
 }
 
+async function applyProviderPaymentResult({ transactionId, providerReference, status }) {
+  const transaction = await Transaction.findById(transactionId);
+  if (!transaction) throw new AppError("Transaction not found", 404);
+  const group = await Group.findById(transaction.group);
+  if (!group) throw new AppError("Group not found", 404);
+
+  if (["completed", "reconciled"].includes(transaction.status)) {
+    return { transaction, group, fairness: null, alreadyApplied: true };
+  }
+
+  if (providerReference) transaction.upi.providerReference = providerReference;
+  transaction.status = status === "succeeded" ? "completed" : status;
+  if (status === "succeeded") transaction.upi.confirmedAt = new Date();
+
+  let fairness = null;
+  if (status === "succeeded") {
+    fairness = applySettlementToGroup(group, transaction);
+    await Promise.all([
+      group.save(),
+      transaction.save(),
+      User.updateOne({ _id: transaction.payer }, { $inc: { "stats.settlementsMade": 1 } }),
+      User.updateOne({ _id: transaction.receiver }, { $inc: { "stats.settlementsReceived": 1 } }),
+    ]);
+  } else {
+    await transaction.save();
+  }
+
+  const populated = await Transaction.findById(transaction._id)
+    .populate("payer", "name email avatar")
+    .populate("receiver", "name email avatar")
+    .populate("group", "name fairnessScore");
+
+  emitToGroup(group._id, "transaction:updated", { groupId: group._id, transaction: populated });
+  if (fairness) emitToGroup(group._id, "fairness:changed", { groupId: group._id, fairness });
+  emitToGroup(group._id, "payment:updated", { groupId: group._id, transactionId: transaction._id, status });
+  emitToGroup(group._id, "group:updated", { groupId: group._id, action: status === "succeeded" ? "settlement_completed" : `payment_${status}` });
+
+  return { transaction: populated, group, fairness, alreadyApplied: false };
+}
+
 module.exports = {
+  applyProviderPaymentResult,
   confirmPayment,
   getTransactions,
   settle,
