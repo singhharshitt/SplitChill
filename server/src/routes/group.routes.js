@@ -5,8 +5,10 @@ const fairnessController = require("../controllers/fairness.controller");
 const analyticsController = require("../controllers/analytics.controller");
 const predictionController = require("../controllers/prediction.controller");
 const chatController = require("../controllers/chat.controller");
+const ocrController = require("../controllers/ocr.controller");
 const { schemas, validate } = require("../middleware/validate");
 const validatePagination = require("../middleware/validatePagination");
+const upload = require("../middleware/upload");
 
 const router = express.Router();
 
@@ -26,5 +28,7 @@ router.get("/:id/suggestions", predictionController.getSuggestions);
 
 router.get("/:id/chat/messages", validatePagination, chatController.getMessages);
 router.post("/:id/chat/messages", validate(schemas.chatMessage), chatController.createMessage);
+
+router.post("/:id/scan-receipt", upload.single("receipt"), ocrController.scanReceipt);
 
 module.exports = router;

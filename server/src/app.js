@@ -1,4 +1,5 @@
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const express = require("express");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -6,6 +7,7 @@ const routes = require("./routes");
 const errorHandler = require("./middleware/errorHandler");
 const notFound = require("./middleware/notFound");
 const requestLogger = require("./middleware/requestLogger");
+const correlationId = require("./middleware/correlationId");
 
 const app = express();
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
@@ -40,6 +42,8 @@ app.use(express.json({
   },
 }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(correlationId);
 app.use(requestLogger);
 
 app.use("/api", routes);

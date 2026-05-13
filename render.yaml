@@ -6,7 +6,7 @@ services:
     plan: free
     buildCommand: npm ci
     startCommand: npm start
-    healthCheckPath: /api/health
+    healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -16,6 +16,8 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
       - key: JWT_EXPIRES_IN
         value: 15m
       - key: REFRESH_TOKEN_TTL_MS
@@ -24,3 +26,11 @@ services:
         value: 900000
       - key: RATE_LIMIT_MAX
         value: 300
+      - key: REDIS_URL
+        sync: false
+      - key: SOCKET_REDIS_URL
+        sync: false
+      - key: HYPERSWITCH_API_KEY
+        sync: false
+      - key: HYPERSWITCH_WEBHOOK_SECRET
+        sync: false

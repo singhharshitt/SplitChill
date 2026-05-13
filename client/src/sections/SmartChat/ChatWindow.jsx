@@ -1,19 +1,38 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AIBubble from "../../components/AIAssistantBubble.jsx";
 import ExpenseBubble from "../../components/ExpenseMessageCard.jsx";
-import SecurityBadge from "../../components/SecurityBadge.jsx";
 import SmartActionBubble from "../../components/SmartActionBubble.jsx";
 import SystemBubble from "../../components/SystemBubble.jsx";
 import TextBubble from "../../components/TextBubble.jsx";
 import { serif } from "../../lib/uiTokens.js";
 import usePagination from "../../hooks/usePagination.js";
+import { useLiveData } from "../../context/LiveDataContext.jsx";
+
+function TypingIndicator({ users }) {
+  const names = Object.values(users || {});
+  if (names.length === 0) return null;
+  const label = names.length === 1
+    ? `${names[0]} is typing`
+    : names.length === 2
+    ? `${names[0]} and ${names[1]} are typing`
+    : `${names[0]} and ${names.length - 1} others are typing`;
+  return (
+    <div className="flex items-center gap-2 px-1">
+      <div className="flex gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+      </div>
+      <span className="text-[11px] text-gray-400 italic">{label}</span>
+    </div>
+  );
+}
 
 export default function ChatWindow({ chat, onSendMessage }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
-  const [showLoadMore, setShowLoadMore] = useState(false);
-  
-  const [prevChatId, setPrevChatId] = useState(null);
+  const { sendTyping, sendStopTyping, typingUsers, onlineUsers } = useLiveData();
+  const typingTimeout = useRef(null);
 
   // Initialize pagination for messages
   const messagesPagination = usePagination(
@@ -21,28 +40,44 @@ export default function ChatWindow({ chat, onSendMessage }) {
     { limit: 30 }
   );
 
-  // Derive state from props instead of using useEffect to prevent cascading rerenders
-  if (chat?.id !== prevChatId) {
-    setPrevChatId(chat?.id || null);
-    messagesPagination.clearItems();
-    if (chat?.messages && chat.messages.length > 0) {
-      messagesPagination.prependItems(chat.messages);
-      setShowLoadMore(true);
-    } else {
-      setShowLoadMore(false);
+  useEffect(() => {
+    if (!chat?.id) {
+      messagesPagination.clearItems();
+      return;
     }
-  }
+
+    messagesPagination.clearItems();
+    messagesPagination.loadInitial(true);
+  }, [chat?.id]);
+
+  useEffect(() => {
+    if (!chat?.messages?.length) return;
+    messagesPagination.prependItems(chat.messages);
+  }, [chat?.messages, messagesPagination.prependItems]);
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
+
+  const handleInputChange = useCallback((e) => {
+    setInput(e.target.value);
+    if (chat?.id) {
+      sendTyping(chat.id);
+      clearTimeout(typingTimeout.current);
+      typingTimeout.current = setTimeout(() => {
+        sendStopTyping(chat.id);
+      }, 2000);
+    }
+  }, [chat?.id, sendTyping, sendStopTyping]);
 
   const handleSend = async () => {
     const text = input.trim();
     if (!text) return;
+    setInput("");
+    if (chat?.id) sendStopTyping(chat.id);
+    clearTimeout(typingTimeout.current);
     const newMessage = await onSendMessage?.(text);
     if (newMessage) {
       messagesPagination.appendItems([newMessage]);
     }
-    setInput("");
   };
 
   if (!chat) {
@@ -61,6 +96,10 @@ export default function ChatWindow({ chat, onSendMessage }) {
     );
   }
 
+  const groupTyping = typingUsers[chat.id] || {};
+  const groupOnline = onlineUsers[chat.id] || [];
+  const onlineCount = groupOnline.length;
+
   return (
     <div className="flex flex-col h-full bg-white rounded-[24px] shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04] overflow-hidden">
       {/* Header */}
@@ -70,12 +109,14 @@ export default function ChatWindow({ chat, onSendMessage }) {
           <div>
             <h3 className="text-sm font-medium text-black">{chat.name}</h3>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[10px] text-gray-500">Active now</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${onlineCount > 0 ? "bg-emerald-400" : "bg-gray-300"}`} />
+              <span className="text-[10px] text-gray-500">
+                {onlineCount > 0 ? `${onlineCount} online` : "No one online"}
+              </span>
             </div>
           </div>
         </div>
-        {chat.balance.amount > 0 && (
+        {chat.balance && chat.balance.amount > 0 && (
           <div className={`text-xs font-medium px-3 py-1.5 rounded-full border ${chat.balance.type === "owed" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"}`}>
             {chat.balance.type === "owed" ? `You are owed ₹${chat.balance.amount}` : `You owe ₹${chat.balance.amount}`}
           </div>
@@ -84,7 +125,7 @@ export default function ChatWindow({ chat, onSendMessage }) {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 bg-[#F5F5F0]">
-        {showLoadMore && messagesPagination.hasMore && (
+        {messagesPagination.items.length > 0 && messagesPagination.hasMore && (
           <div className="flex justify-center py-4">
             <button
               onClick={() => messagesPagination.loadMore()}
@@ -95,7 +136,12 @@ export default function ChatWindow({ chat, onSendMessage }) {
             </button>
           </div>
         )}
-        <SecurityBadge />
+        <div className="flex items-center justify-center gap-1.5 py-3">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <span className="text-[10px] text-gray-400 tracking-wide">Secured connection</span>
+        </div>
         {messagesPagination.items.map((msg) => {
           switch (msg.type) {
             case "text": return <TextBubble key={msg.id} message={msg} />;
@@ -106,6 +152,7 @@ export default function ChatWindow({ chat, onSendMessage }) {
             default: return null;
           }
         })}
+        <TypingIndicator users={groupTyping} />
       </div>
 
       {/* Input */}
@@ -116,7 +163,7 @@ export default function ChatWindow({ chat, onSendMessage }) {
           </button>
           <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Message or ask about fairness..."
             className="flex-1 bg-[#FAFAF8] rounded-2xl px-5 py-3 text-sm outline-none focus:ring-1 focus:ring-[#A3FDA7]/30 transition-all placeholder:text-gray-400"

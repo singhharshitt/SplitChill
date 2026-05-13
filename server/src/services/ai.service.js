@@ -1,0 +1,268 @@
+/**
+ * AI Service — Groq model router with fallback chain.
+ * Routes different AI tasks to purpose-fitted models.
+ */
+const logger = require("../utils/logger");
+
+const GROQ_BASE = "https://api.groq.com/openai/v1/chat/completions";
+
+// ── Model routing table ──
+const MODELS = {
+  "split-recommendation": {
+    primary: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    fallback: "meta-llama/llama-3.3-70b-versatile",
+    label: "Split Recommendation",
+  },
+  "fairness-explanation": {
+    primary: "qwen/qwen3-32b",
+    fallback: "meta-llama/llama-3.3-70b-versatile",
+    label: "Fairness Explanation",
+  },
+  "predictive-suggestions": {
+    primary: "meta-llama/llama-4-scout-17b-16e-instruct",
+    fallback: "meta-llama/llama-3.3-70b-versatile",
+    label: "Predictive Suggestions",
+  },
+  "analytics-summary": {
+    primary: "meta-llama/llama-3.3-70b-versatile",
+    fallback: "meta-llama/llama-4-scout-17b-16e-instruct",
+    label: "Analytics Summary",
+  },
+};
+
+function getApiKey() {
+  return process.env.GROQ_API_KEY || process.env.groq;
+}
+
+/**
+ * Call a Groq model with structured prompt.
+ * @param {string} task — key from MODELS table
+ * @param {string} systemPrompt — system message
+ * @param {string} userPrompt — user message
+ * @param {object} options — { temperature, maxTokens, jsonMode }
+ * @returns {Promise<{text: string, model: string, usage: object}>}
+ */
+async function callModel(task, systemPrompt, userPrompt, options = {}) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return { text: null, model: "none", usage: {}, error: "GROQ_API_KEY not configured" };
+  }
+
+  const config = MODELS[task] || MODELS["split-recommendation"];
+  const models = [config.primary, config.fallback].filter(Boolean);
+  const { temperature = 0.3, maxTokens = 1024, jsonMode = false } = options;
+
+  for (const model of models) {
+    try {
+      const body = {
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
+      };
+      if (jsonMode) body.response_format = { type: "json_object" };
+
+      const res = await fetch(GROQ_BASE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.text().catch(() => "");
+        logger.warn("ai_model_error", { task, model, status: res.status, body: err.slice(0, 200) });
+        continue; // try fallback
+      }
+
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content || "";
+      return { text, model, usage: data.usage || {} };
+    } catch (err) {
+      logger.warn("ai_model_exception", { task, model, error: err.message });
+      continue;
+    }
+  }
+
+  return { text: null, model: "none", usage: {}, error: "All AI models failed" };
+}
+
+/**
+ * Parse JSON from model response, handling markdown fences.
+ */
+function parseJsonResponse(text) {
+  if (!text) return null;
+  try {
+    // Strip markdown code fences if present
+    const cleaned = text.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "").trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
+// ── Task-specific functions ──
+
+async function getAiSplitRecommendation({ amount, participants, groupContext, splitType }) {
+  const systemPrompt = `You are a fairness-aware expense splitting engine. Given expense details and group context, recommend the optimal share for each participant. Consider income levels, past payment history, contribution ratios, and participation patterns.
+
+Return a JSON object with this exact schema:
+{
+  "shares": [{"user": "<userId>", "share": <number>, "reason": "<short reason>"}],
+  "explanation": "<2-3 sentence explanation of the overall split logic>",
+  "confidence": <0.0-1.0>,
+  "splitStrategy": "<strategy name>"
+}
+
+Rules:
+- Shares MUST sum exactly to the total amount
+- Each share must be >= 0
+- Use the participant IDs exactly as given
+- Be concise in reasons`;
+
+  const userPrompt = `Expense amount: ₹${amount}
+Split type requested: ${splitType}
+Participants:
+${participants.map((p) => `- ${p.userName} (ID: ${p.user}, income: ₹${p.income || 0}, totalPaid: ₹${p.totalPaid || 0}, totalShare: ₹${p.totalShare || 0}, netBalance: ₹${p.netBalance || 0})`).join("\n")}
+
+Group context:
+- Fairness score: ${groupContext.fairnessScore}/100
+- Total group expenses: ₹${groupContext.totalExpenses || 0}`;
+
+  const result = await callModel("split-recommendation", systemPrompt, userPrompt, {
+    temperature: 0.2,
+    maxTokens: 800,
+    jsonMode: true,
+  });
+
+  const parsed = parseJsonResponse(result.text);
+  if (!parsed?.shares?.length) {
+    return { shares: null, explanation: "AI recommendation unavailable. Using fairness engine.", model: result.model, error: result.error };
+  }
+
+  // Normalize shares to match exact amount
+  const rawTotal = parsed.shares.reduce((s, p) => s + (p.share || 0), 0);
+  if (Math.abs(rawTotal - amount) > 0.01 && rawTotal > 0) {
+    const factor = amount / rawTotal;
+    parsed.shares = parsed.shares.map((s) => ({ ...s, share: Math.round(s.share * factor * 100) / 100 }));
+  }
+
+  return {
+    shares: parsed.shares,
+    explanation: parsed.explanation || "",
+    confidence: parsed.confidence || 0.7,
+    splitStrategy: parsed.splitStrategy || splitType,
+    model: result.model,
+  };
+}
+
+async function getFairnessExplanation({ fairness, members, groupName }) {
+  const systemPrompt = `You are a fairness analyst for a group expense app called SplitChill. Given fairness data, provide a clear, human-readable explanation of the current fairness state. Be concise (3-5 sentences max). Use names, not IDs. Mention specific imbalances.
+
+Return a JSON object:
+{
+  "summary": "<1 sentence overall assessment>",
+  "details": ["<point 1>", "<point 2>", ...],
+  "recommendation": "<1 sentence suggestion>"
+}`;
+
+  const userPrompt = `Group: ${groupName}
+Fairness Score: ${fairness.score}/100
+Imbalance: ₹${fairness.imbalance}
+
+Members:
+${members.map((m) => `- ${m.userName}: paid ₹${m.totalPaid || 0}, share ₹${m.totalShare || 0}, net ₹${m.netBalance || 0}`).join("\n")}`;
+
+  const result = await callModel("fairness-explanation", systemPrompt, userPrompt, {
+    temperature: 0.3,
+    maxTokens: 400,
+    jsonMode: true,
+  });
+
+  const parsed = parseJsonResponse(result.text);
+  return {
+    summary: parsed?.summary || `Group fairness is ${fairness.score >= 80 ? "healthy" : fairness.score >= 50 ? "moderate" : "needs attention"} at ${fairness.score}/100.`,
+    details: parsed?.details || [],
+    recommendation: parsed?.recommendation || "",
+    model: result.model,
+  };
+}
+
+async function getAiPredictions({ members, expenses, fairnessScore, groupName }) {
+  const systemPrompt = `You are a predictive analytics engine for SplitChill. Given group data, provide 2-4 actionable predictions or suggestions. Be practical and specific.
+
+Return a JSON object:
+{
+  "predictions": [{"title": "<short title>", "description": "<1 sentence>", "type": "expense|settlement|pattern|tip"}],
+  "trendInsight": "<1 sentence about spending trend>"
+}`;
+
+  const recentExpenses = (expenses || []).slice(-5).map((e) => `${e.title}: ₹${e.amount}`).join(", ");
+
+  const userPrompt = `Group: ${groupName}
+Fairness Score: ${fairnessScore}/100
+Members: ${members.map((m) => `${m.userName} (net: ₹${m.netBalance || 0})`).join(", ")}
+Recent expenses: ${recentExpenses || "none yet"}`;
+
+  const result = await callModel("predictive-suggestions", systemPrompt, userPrompt, {
+    temperature: 0.5,
+    maxTokens: 500,
+    jsonMode: true,
+  });
+
+  const parsed = parseJsonResponse(result.text);
+  return {
+    predictions: parsed?.predictions || [],
+    trendInsight: parsed?.trendInsight || "",
+    model: result.model,
+  };
+}
+
+async function getAnalyticsSummary({ analytics, groupName }) {
+  const systemPrompt = `You are a financial analyst for SplitChill. Given group analytics data, generate a concise natural-language summary for a dashboard. Focus on key insights.
+
+Return a JSON object:
+{
+  "headline": "<catchy 1-line summary>",
+  "insights": ["<insight 1>", "<insight 2>", "<insight 3>"],
+  "healthAssessment": "<1 sentence group health note>"
+}`;
+
+  const userPrompt = `Group: ${groupName}
+Total Expenses: ₹${analytics.totals?.expenses || 0}
+Total Settlements: ₹${analytics.totals?.settlements || 0}
+Current Imbalance: ₹${analytics.totals?.imbalance || 0}
+Health Score: ${analytics.groupHealthScore}/100
+
+Member breakdown:
+${(analytics.paymentVsUsage || []).map((m) => `- ${m.name}: paid ₹${m.paid}, share ₹${m.share}, net ₹${m.netBalance}`).join("\n")}`;
+
+  const result = await callModel("analytics-summary", systemPrompt, userPrompt, {
+    temperature: 0.4,
+    maxTokens: 400,
+    jsonMode: true,
+  });
+
+  const parsed = parseJsonResponse(result.text);
+  return {
+    headline: parsed?.headline || `₹${analytics.totals?.expenses || 0} tracked across the group.`,
+    insights: parsed?.insights || [],
+    healthAssessment: parsed?.healthAssessment || "",
+    model: result.model,
+  };
+}
+
+module.exports = {
+  callModel,
+  getAiSplitRecommendation,
+  getFairnessExplanation,
+  getAiPredictions,
+  getAnalyticsSummary,
+  parseJsonResponse,
+};

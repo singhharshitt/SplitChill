@@ -10,6 +10,11 @@ export function getSocket() {
       autoConnect: false,
       auth: () => ({ token: localStorage.getItem(TOKEN_KEY) }),
       transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 15000,
+      randomizationFactor: 0.3,
     });
   }
   return socket;

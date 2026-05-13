@@ -1,9 +1,10 @@
-/**
+/*
  * usePagination Hook for Cursor-Based Pagination
  * File: client/src/hooks/usePagination.js
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import api, { unwrap } from '../api/client.js';
 
 /**
  * Hook for managing cursor-based pagination
@@ -17,10 +18,29 @@ import { useState, useCallback, useRef, useEffect } from 'react';
  * @returns {Object} Pagination state and methods
  */
 export function usePagination(fetchFn, options = {}) {
-  const { 
-    initialLimit = 20,
-    onError = null 
+  const {
+    initialLimit = options.limit ?? 20,
+    onError = null,
   } = options;
+
+  const getItemKey = (item) => String(item?._id || item?.id || '');
+
+  const fetchPage = useCallback(async ({ limit, cursor, signal }) => {
+    if (typeof fetchFn === 'function') {
+      const result = await fetchFn({ limit, cursor, signal });
+      return result?.data ? unwrap(result) : result;
+    }
+
+    if (typeof fetchFn === 'string' && fetchFn) {
+      const response = await api.get(fetchFn, {
+        params: { limit, cursor },
+        signal,
+      });
+      return unwrap(response);
+    }
+
+    return { items: [], pagination: { hasMore: false, nextCursor: null } };
+  }, [fetchFn]);
 
   // State management
   const [items, setItems] = useState([]);
@@ -53,13 +73,13 @@ export function usePagination(fetchFn, options = {}) {
     }
 
     try {
-      const result = await fetchFn({ 
+      const result = await fetchPage({ 
         limit: initialLimit,
         signal: abortControllerRef.current.signal 
       });
       
       const newItems = result.items || [];
-      newItems.forEach(item => itemIdsRef.current.add(item._id));
+      newItems.forEach((item) => itemIdsRef.current.add(getItemKey(item)));
 
       setItems(newItems);
       setNextCursor(result.pagination?.nextCursor || null);
@@ -88,7 +108,7 @@ export function usePagination(fetchFn, options = {}) {
     setError(null);
 
     try {
-      const result = await fetchFn({ 
+      const result = await fetchPage({ 
         limit: initialLimit,
         cursor: nextCursor 
       });
@@ -96,11 +116,12 @@ export function usePagination(fetchFn, options = {}) {
       const newItems = result.items || [];
       
       // Deduplicate: filter out items we've already seen
-      const dedupedItems = newItems.filter(item => {
-        if (itemIdsRef.current.has(item._id)) {
+      const dedupedItems = newItems.filter((item) => {
+        const itemKey = getItemKey(item);
+        if (!itemKey || itemIdsRef.current.has(itemKey)) {
           return false; // Skip duplicate
         }
-        itemIdsRef.current.add(item._id);
+        itemIdsRef.current.add(itemKey);
         return true;
       });
 
@@ -123,11 +144,12 @@ export function usePagination(fetchFn, options = {}) {
   const prependItems = useCallback((newItems) => {
     setItems(prev => {
       // Deduplicate incoming items
-      const dedupedItems = newItems.filter(item => {
-        if (itemIdsRef.current.has(item._id)) {
+      const dedupedItems = newItems.filter((item) => {
+        const itemKey = getItemKey(item);
+        if (!itemKey || itemIdsRef.current.has(itemKey)) {
           return false;
         }
-        itemIdsRef.current.add(item._id);
+        itemIdsRef.current.add(itemKey);
         return true;
       });
 
@@ -141,11 +163,12 @@ export function usePagination(fetchFn, options = {}) {
    */
   const appendItems = useCallback((newItems) => {
     setItems(prev => {
-      const dedupedItems = newItems.filter(item => {
-        if (itemIdsRef.current.has(item._id)) {
+      const dedupedItems = newItems.filter((item) => {
+        const itemKey = getItemKey(item);
+        if (!itemKey || itemIdsRef.current.has(itemKey)) {
           return false;
         }
-        itemIdsRef.current.add(item._id);
+        itemIdsRef.current.add(itemKey);
         return true;
       });
 
@@ -158,8 +181,8 @@ export function usePagination(fetchFn, options = {}) {
    * Remove item by ID
    */
   const removeItem = useCallback((itemId) => {
-    setItems(prev => prev.filter(item => item._id !== itemId));
-    itemIdsRef.current.delete(itemId);
+    setItems((prev) => prev.filter((item) => getItemKey(item) !== String(itemId)));
+    itemIdsRef.current.delete(String(itemId));
   }, []);
 
   /**
@@ -167,8 +190,8 @@ export function usePagination(fetchFn, options = {}) {
    */
   const updateItem = useCallback((itemId, updates) => {
     setItems(prev =>
-      prev.map(item => 
-        item._id === itemId 
+      prev.map((item) => 
+        getItemKey(item) === String(itemId) 
           ? { ...item, ...updates }
           : item
       )
@@ -179,7 +202,7 @@ export function usePagination(fetchFn, options = {}) {
    * Find item by ID
    */
   const findItem = useCallback((itemId) => {
-    return items.find(item => item._id === itemId);
+    return items.find((item) => getItemKey(item) === String(itemId));
   }, [items]);
 
   /**

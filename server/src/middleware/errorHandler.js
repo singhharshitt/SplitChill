@@ -5,10 +5,12 @@ function errorHandler(err, req, res, _next) {
   const payload = {
     success: false,
     error: err.message || "Internal server error",
+    correlationId: req.correlationId,
   };
 
   if (err.details) payload.details = err.details;
   logger[statusCode >= 500 ? "error" : "warn"]("request_error", {
+    correlationId: req.correlationId,
     method: req.method,
     path: req.originalUrl,
     status: statusCode,

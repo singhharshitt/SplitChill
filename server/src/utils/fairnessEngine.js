@@ -190,8 +190,8 @@ function applyExpenseToGroup(group, expense) {
     imbalance: fairness.imbalance,
     calculatedAt: new Date(),
   });
-  if (group.fairnessHistory.length > 200) {
-    group.fairnessHistory = group.fairnessHistory.slice(-200);
+  if (group.fairnessHistory.length > 50) {
+    group.fairnessHistory = group.fairnessHistory.slice(-50);
   }
 
   return fairness;
@@ -216,8 +216,8 @@ function applySettlementToGroup(group, transaction) {
     imbalance: fairness.imbalance,
     calculatedAt: new Date(),
   });
-  if (group.fairnessHistory.length > 200) {
-    group.fairnessHistory = group.fairnessHistory.slice(-200);
+  if (group.fairnessHistory.length > 50) {
+    group.fairnessHistory = group.fairnessHistory.slice(-50);
   }
 
   return fairness;

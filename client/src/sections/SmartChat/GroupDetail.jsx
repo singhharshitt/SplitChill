@@ -1,19 +1,39 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AIBubble from "../../components/AIAssistantBubble.jsx";
 import ExpenseBubble from "../../components/ExpenseMessageCard.jsx";
 import FairnessRing from "../../components/FairnessRing.jsx";
 import InsightCard from "../../components/InsightCard.jsx";
-import SecurityBadge from "../../components/SecurityBadge.jsx";
 import SystemBubble from "../../components/SystemBubble.jsx";
 import TextBubble from "../../components/TextBubble.jsx";
 import { cardBase, serif } from "../../lib/uiTokens.js";
 import ExpenseRow from "./ExpenseRow.jsx";
 import MemberRow from "./MemberRow.jsx";
 import usePagination from "../../hooks/usePagination.js";
+import { useLiveData } from "../../context/LiveDataContext.jsx";
+
+function TypingIndicator({ users }) {
+  const names = Object.values(users || {});
+  if (names.length === 0) return null;
+  const label = names.length === 1
+    ? `${names[0]} is typing`
+    : `${names.length} people are typing`;
+  return (
+    <div className="flex items-center gap-2 px-1 py-1">
+      <div className="flex gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+      </div>
+      <span className="text-[11px] text-gray-400 italic">{label}</span>
+    </div>
+  );
+}
 
 export default function GroupDetail({ group, onSendMessage }) {
   const [messageInput, setMessageInput] = useState("");
   const scrollRef = useRef(null);
+  const { sendTyping, sendStopTyping, typingUsers, onlineUsers } = useLiveData();
+  const typingTimeout = useRef(null);
   
   // Initialize pagination for messages and expenses
   const messagesPagination = usePagination(
@@ -26,32 +46,58 @@ export default function GroupDetail({ group, onSendMessage }) {
     { limit: 25 }
   );
 
-  const [prevGroupId, setPrevGroupId] = useState(null);
+  useEffect(() => {
+    if (!group?.id) {
+      messagesPagination.clearItems();
+      expensesPagination.clearItems();
+      return;
+    }
 
-  // Derive state from props instead of using useEffect to prevent cascading rerenders
-  if (group?.id !== prevGroupId) {
-    setPrevGroupId(group?.id || null);
     messagesPagination.clearItems();
     expensesPagination.clearItems();
-    
-    if (group?.messages && group.messages.length > 0) {
+    messagesPagination.loadInitial(true);
+    expensesPagination.loadInitial(true);
+  }, [group?.id]);
+
+  useEffect(() => {
+    if (group?.messages?.length) {
       messagesPagination.prependItems(group.messages);
     }
-    if (group?.expenses && group.expenses.length > 0) {
+  }, [group?.messages, messagesPagination.prependItems]);
+
+  useEffect(() => {
+    if (group?.expenses?.length) {
       expensesPagination.prependItems(group.expenses);
     }
-  }
+  }, [group?.expenses, expensesPagination.prependItems]);
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
 
+  const handleInputChange = useCallback((e) => {
+    setMessageInput(e.target.value);
+    if (group?.id) {
+      sendTyping(group.id);
+      clearTimeout(typingTimeout.current);
+      typingTimeout.current = setTimeout(() => {
+        sendStopTyping(group.id);
+      }, 2000);
+    }
+  }, [group?.id, sendTyping, sendStopTyping]);
+
   const handleSend = async () => {
     if (!messageInput.trim()) return;
-    const newMessage = await onSendMessage?.(messageInput.trim());
+    const text = messageInput.trim();
+    setMessageInput("");
+    if (group?.id) sendStopTyping(group.id);
+    clearTimeout(typingTimeout.current);
+    const newMessage = await onSendMessage?.(text);
     if (newMessage) {
       messagesPagination.appendItems([newMessage]);
     }
-    setMessageInput("");
   };
+
+  const groupTyping = typingUsers[group?.id] || {};
+  const groupOnline = onlineUsers[group?.id] || [];
 
   return (
     <div className="flex flex-col h-full">
@@ -61,7 +107,15 @@ export default function GroupDetail({ group, onSendMessage }) {
           <div className="w-12 h-12 rounded-full bg-black/[0.04] flex items-center justify-center text-sm font-bold">{group.avatar}</div>
           <div>
             <h2 className={`${serif} text-2xl`}>{group.name}</h2>
-            <p className="text-xs text-gray-500">{group.members.length} members • {group.expenses.length} expenses</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-gray-500">{group.members.length} members • {group.expenses.length} expenses</p>
+              {groupOnline.length > 0 && (
+                <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {groupOnline.length} online
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <FairnessRing score={group.fairnessScore} />
@@ -111,7 +165,12 @@ export default function GroupDetail({ group, onSendMessage }) {
           <div className={`${cardBase} flex flex-col h-96`}>
             <h3 className={`${serif} text-lg mb-3`}>Group Chat</h3>
             <div ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col gap-3 px-1 pb-2">
-              <SecurityBadge />
+              <div className="flex items-center justify-center gap-1.5 py-2">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span className="text-[10px] text-gray-400 tracking-wide">Secured connection</span>
+              </div>
               {messagesPagination.items.map((msg) => {
                 switch (msg.type) {
                   case "text": return <TextBubble key={msg.id} message={msg} />;
@@ -121,11 +180,12 @@ export default function GroupDetail({ group, onSendMessage }) {
                   default: return null;
                 }
               })}
+              <TypingIndicator users={groupTyping} />
             </div>
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/5">
               <input
                 value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Message..."
                 className="flex-1 bg-[#FAFAF8] rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-[#A3FDA7]/30 transition-all placeholder:text-gray-400"

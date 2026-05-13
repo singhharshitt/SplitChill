@@ -20,10 +20,18 @@ const Payment = require("../models/Payment");
 const PaymentEvent = require("../models/PaymentEvent");
 const Transaction = require("../models/Transaction");
 const Group = require("../models/Group");
+const User = require("../models/User");
 const WebhookLog = require("../models/WebhookLog");
 const AppError = require("../utils/appError");
 const { emitToGroup } = require("../socket/socketHub");
 const smsService = require("./sms.service");
+
+// Lazy-loaded to avoid circular dependency with transaction.service
+let _transactionService;
+function getTransactionService() {
+  if (!_transactionService) _transactionService = require("./transaction.service");
+  return _transactionService;
+}
 
 const HYPERSWITCH_BASE_URL = process.env.HYPERSWITCH_BASE_URL || "https://sandbox.hyperswitch.io";
 
@@ -72,7 +80,8 @@ function isHyperswitchReplay(headers = {}, payload = {}, now = Date.now()) {
 }
 
 async function createHyperswitchPaymentIntent({ payment, transaction, group }) {
-  if (!process.env.HYPERSWITCH_API_KEY) {
+  const apiKey = process.env.HYPERSWITCH_API_KEY || process.env.HyperID;
+  if (!apiKey) {
     if (process.env.NODE_ENV === "production") throw new AppError("Hyperswitch API key is not configured", 500);
     return {
       payment_id: `dev_${payment._id}`,
@@ -86,7 +95,7 @@ async function createHyperswitchPaymentIntent({ payment, transaction, group }) {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      "api-key": process.env.HYPERSWITCH_API_KEY,
+      "api-key": apiKey,
       "Idempotency-Key": payment.idempotencyKey,
     },
     body: JSON.stringify({
@@ -155,6 +164,7 @@ async function initiatePayment(actorId, transactionId, { idempotencyKey, currenc
   transaction.status = payment.status === "processing" ? "processing" : "pending";
   transaction.paymentMethod = "hyperswitch";
   transaction.payment = payment._id;
+  if (!transaction.upi) transaction.upi = {};
   transaction.upi.initiatedAt = new Date();
   await transaction.save();
 
@@ -273,29 +283,35 @@ async function handleHyperswitchWebhook({ rawBody, headers, payload }) {
     payload,
   });
 
-  const { applyProviderPaymentResult } = require("./transaction.service");
+  const { applyProviderPaymentResult } = getTransactionService();
   if (nextStatus === "succeeded") {
     await applyProviderPaymentResult({ transactionId: payment.transaction, providerReference: providerPaymentId, status: "succeeded" });
-    await smsService.sendSms({
-      recipient: (await require("../models/User").findById(payment.payer).select("phone"))?.phone,
-      message: `SplitChill payment of INR ${payment.amount} succeeded and your group balances were updated.`,
-      purpose: "payment_success",
-      user: payment.payer,
-      group: payment.group,
-      payment: payment._id,
-      transaction: payment.transaction,
-    });
+    const payerUser = await User.findById(payment.payer).select("phone");
+    if (payerUser?.phone) {
+      await smsService.sendSms({
+        recipient: payerUser.phone,
+        message: `SplitChill payment of INR ${payment.amount} succeeded and your group balances were updated.`,
+        purpose: "payment_success",
+        user: payment.payer,
+        group: payment.group,
+        payment: payment._id,
+        transaction: payment.transaction,
+      });
+    }
   } else if (["failed", "cancelled"].includes(nextStatus)) {
     await applyProviderPaymentResult({ transactionId: payment.transaction, providerReference: providerPaymentId, status: "failed" });
-    await smsService.sendSms({
-      recipient: (await require("../models/User").findById(payment.payer).select("phone"))?.phone,
-      message: `SplitChill payment of INR ${payment.amount} failed. Please retry or settle manually.`,
-      purpose: "payment_failed",
-      user: payment.payer,
-      group: payment.group,
-      payment: payment._id,
-      transaction: payment.transaction,
-    });
+    const payerUser = await User.findById(payment.payer).select("phone");
+    if (payerUser?.phone) {
+      await smsService.sendSms({
+        recipient: payerUser.phone,
+        message: `SplitChill payment of INR ${payment.amount} failed. Please retry or settle manually.`,
+        purpose: "payment_failed",
+        user: payment.payer,
+        group: payment.group,
+        payment: payment._id,
+        transaction: payment.transaction,
+      });
+    }
   } else {
     emitToGroup(payment.group, "payment:updated", { groupId: payment.group, payment: sanitizePayment(payment), transactionId: payment.transaction });
   }

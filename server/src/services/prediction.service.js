@@ -1,7 +1,9 @@
 const Group = require("../models/Group");
+const Expense = require("../models/Expense");
 const AppError = require("../utils/appError");
 const { ensureMembership } = require("./group.service");
 const { roundMoney } = require("../utils/fairnessEngine");
+const aiService = require("./ai.service");
 
 async function getSuggestions(groupId, userId) {
   const group = await Group.findById(groupId).populate("members.user", "name email");
@@ -19,7 +21,7 @@ async function getSuggestions(groupId, userId) {
   const nextPayer = pickNextPayer(group.members);
   const suggestedSplitType = group.fairnessScore < 75 ? "ai-recommended" : "equal";
 
-  return {
+  const engineResult = {
     nextPayer: nextPayer ? {
       user: nextPayer.user._id,
       name: nextPayer.user.name,
@@ -32,6 +34,31 @@ async function getSuggestions(groupId, userId) {
       message: `${item.payerName} should settle ₹${item.amount} with ${item.receiverName}`,
     })),
   };
+
+  // ── AI-enhanced predictions (non-blocking) ──
+  try {
+    const recentExpenses = await Expense.find({ group: groupId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("title amount")
+      .lean();
+
+    const aiPredictions = await aiService.getAiPredictions({
+      members: group.members.map((m) => ({
+        userName: m.user?.name || "Member",
+        netBalance: m.netBalance || 0,
+      })),
+      expenses: recentExpenses,
+      fairnessScore: group.fairnessScore,
+      groupName: group.name,
+    });
+
+    engineResult.aiPredictions = aiPredictions;
+  } catch {
+    engineResult.aiPredictions = null;
+  }
+
+  return engineResult;
 }
 
 function pickNextPayer(members) {

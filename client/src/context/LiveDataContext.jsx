@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import api, { getApiError, unwrap } from "../api/client.js";
-import { connectSocket, disconnectSocket } from "../api/socket.js";
+import { connectSocket, disconnectSocket, getSocket } from "../api/socket.js";
 import { useAuth } from "./AuthContext.jsx";
 import { mapGroup, mapMessage, mapTransaction, userIdOf } from "../lib/liveDataTransforms.js";
 
@@ -30,6 +30,14 @@ export function LiveDataProvider({ children }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ── Typing & Presence state ──
+  const [typingUsers, setTypingUsers] = useState({}); // { [groupId]: { [userId]: userName } }
+  const [onlineUsers, setOnlineUsers] = useState({}); // { [groupId]: [userId, ...] }
+  const typingTimers = useRef({}); // cleanup timers for stale typing state
+
+  // Ref to track group IDs for socket event binding (avoids re-render loops)
+  const groupIdsRef = useRef([]);
+
   const refreshTransactions = useCallback(async () => {
     if (!isLoggedIn) return;
     const data = unwrap(await api.get("/transactions"));
@@ -48,9 +56,7 @@ export function LiveDataProvider({ children }) {
     ]);
 
     const group = unwrap(groupRes).group;
-    setRawGroups((existing) => {
-      return prependById(existing, group);
-    });
+    setRawGroups((existing) => prependById(existing, group));
     setGroupExtras((existing) => ({
       ...existing,
       [groupId]: {
@@ -81,6 +87,7 @@ export function LiveDataProvider({ children }) {
     }
   }, [isLoggedIn, refreshGroup, refreshTransactions]);
 
+  // ── Initial data load ──
   useEffect(() => {
     if (!isLoggedIn) {
       Promise.resolve().then(() => {
@@ -88,6 +95,8 @@ export function LiveDataProvider({ children }) {
         setGroupExtras({});
         setTransactions([]);
         setSelectedGroupId(null);
+        setTypingUsers({});
+        setOnlineUsers({});
       });
       disconnectSocket();
       return;
@@ -95,20 +104,54 @@ export function LiveDataProvider({ children }) {
     Promise.resolve().then(refreshGroups);
   }, [isLoggedIn, refreshGroups]);
 
+  // ── Keep groupIdsRef in sync ──
+  useEffect(() => {
+    groupIdsRef.current = rawGroups.map((g) => userIdOf(g)).filter(Boolean);
+  }, [rawGroups]);
+
+  // ── Socket event binding (separate from rawGroups to avoid infinite loops) ──
   useEffect(() => {
     if (!isLoggedIn) return undefined;
     const socket = connectSocket();
-    const groupIds = rawGroups.map((group) => userIdOf(group)).filter(Boolean);
-    const joinGroups = () => groupIds.forEach((groupId) => socket.emit("group:join", groupId));
-    joinGroups();
 
-    const refreshPayloadGroup = (payload) => {
-      if (payload?.groupId) {
-        refreshGroup(payload.groupId);
-        refreshTransactions();
-      }
+    const joinGroups = () => {
+      groupIdsRef.current.forEach((groupId) => socket.emit("group:join", groupId));
     };
-    const appendMessage = (payload) => {
+
+    // Join on connect and reconnect
+    joinGroups();
+    socket.on("connect", joinGroups);
+
+    // ── Reconnect recovery ──
+    socket.on("connect", () => {
+      // Re-join all groups on reconnect
+      joinGroups();
+    });
+
+    // ── Event handlers that use payload data directly instead of full refetch ──
+    const handleExpenseAdded = (payload) => {
+      if (!payload?.groupId) return;
+      // Refresh only the specific group (expense data changed)
+      refreshGroup(payload.groupId);
+    };
+
+    const handleFairnessChanged = (payload) => {
+      if (!payload?.groupId || !payload?.fairness) return;
+      setGroupExtras((existing) => ({
+        ...existing,
+        [payload.groupId]: {
+          ...(existing[payload.groupId] || {}),
+          fairness: payload.fairness,
+        },
+      }));
+    };
+
+    const handleGroupUpdated = (payload) => {
+      if (!payload?.groupId) return;
+      refreshGroup(payload.groupId);
+    };
+
+    const handleChatMessage = (payload) => {
       if (!payload?.groupId || !payload?.message) return;
       setGroupExtras((existing) => ({
         ...existing,
@@ -117,35 +160,101 @@ export function LiveDataProvider({ children }) {
           messages: mergeById(existing[payload.groupId]?.messages || [], payload.message),
         },
       }));
+      // Clear typing indicator for this sender
+      const senderId = userIdOf(payload.message.sender);
+      if (senderId) {
+        setTypingUsers((prev) => {
+          const groupTyping = { ...(prev[payload.groupId] || {}) };
+          delete groupTyping[senderId];
+          return { ...prev, [payload.groupId]: groupTyping };
+        });
+      }
     };
-    const upsertTransaction = (payload) => {
+
+    const handleTransactionCreated = (payload) => {
       if (payload?.transaction) {
         setTransactions((existing) => prependById(existing, mapTransaction(payload.transaction, currentUserId)));
       }
       if (payload?.groupId) refreshGroup(payload.groupId);
     };
 
-    socket.on("connect", joinGroups);
-    socket.on("expense:added", refreshPayloadGroup);
-    socket.on("split:updated", refreshPayloadGroup);
-    socket.on("fairness:changed", refreshPayloadGroup);
-    socket.on("group:updated", refreshPayloadGroup);
-    socket.on("chat:message", appendMessage);
-    socket.on("transaction:created", upsertTransaction);
-    socket.on("transaction:updated", upsertTransaction);
+    const handleTransactionUpdated = (payload) => {
+      if (payload?.transaction) {
+        setTransactions((existing) => prependById(existing, mapTransaction(payload.transaction, currentUserId)));
+      }
+      if (payload?.groupId) refreshGroup(payload.groupId);
+    };
+
+    // ── Typing indicators ──
+    const handleTyping = (payload) => {
+      if (!payload?.groupId || !payload?.userId || payload.userId === currentUserId) return;
+      setTypingUsers((prev) => ({
+        ...prev,
+        [payload.groupId]: {
+          ...(prev[payload.groupId] || {}),
+          [payload.userId]: payload.userName || "Someone",
+        },
+      }));
+      // Auto-clear after 4 seconds
+      const timerKey = `${payload.groupId}:${payload.userId}`;
+      clearTimeout(typingTimers.current[timerKey]);
+      typingTimers.current[timerKey] = setTimeout(() => {
+        setTypingUsers((prev) => {
+          const groupTyping = { ...(prev[payload.groupId] || {}) };
+          delete groupTyping[payload.userId];
+          return { ...prev, [payload.groupId]: groupTyping };
+        });
+      }, 4000);
+    };
+
+    const handleStopTyping = (payload) => {
+      if (!payload?.groupId || !payload?.userId) return;
+      setTypingUsers((prev) => {
+        const groupTyping = { ...(prev[payload.groupId] || {}) };
+        delete groupTyping[payload.userId];
+        return { ...prev, [payload.groupId]: groupTyping };
+      });
+      clearTimeout(typingTimers.current[`${payload.groupId}:${payload.userId}`]);
+    };
+
+    // ── Presence ──
+    const handlePresenceUpdate = (payload) => {
+      if (!payload?.groupId) return;
+      setOnlineUsers((prev) => ({
+        ...prev,
+        [payload.groupId]: payload.onlineUsers || [],
+      }));
+    };
+
+    socket.on("expense:added", handleExpenseAdded);
+    socket.on("split:updated", handleExpenseAdded);
+    socket.on("fairness:changed", handleFairnessChanged);
+    socket.on("group:updated", handleGroupUpdated);
+    socket.on("chat:message", handleChatMessage);
+    socket.on("transaction:created", handleTransactionCreated);
+    socket.on("transaction:updated", handleTransactionUpdated);
+    socket.on("chat:typing", handleTyping);
+    socket.on("chat:stop-typing", handleStopTyping);
+    socket.on("presence:update", handlePresenceUpdate);
 
     return () => {
-      groupIds.forEach((groupId) => socket.emit("group:leave", groupId));
       socket.off("connect", joinGroups);
-      socket.off("expense:added", refreshPayloadGroup);
-      socket.off("split:updated", refreshPayloadGroup);
-      socket.off("fairness:changed", refreshPayloadGroup);
-      socket.off("group:updated", refreshPayloadGroup);
-      socket.off("chat:message", appendMessage);
-      socket.off("transaction:created", upsertTransaction);
-      socket.off("transaction:updated", upsertTransaction);
+      socket.off("expense:added", handleExpenseAdded);
+      socket.off("split:updated", handleExpenseAdded);
+      socket.off("fairness:changed", handleFairnessChanged);
+      socket.off("group:updated", handleGroupUpdated);
+      socket.off("chat:message", handleChatMessage);
+      socket.off("transaction:created", handleTransactionCreated);
+      socket.off("transaction:updated", handleTransactionUpdated);
+      socket.off("chat:typing", handleTyping);
+      socket.off("chat:stop-typing", handleStopTyping);
+      socket.off("presence:update", handlePresenceUpdate);
+      // Clear all typing timers
+      Object.values(typingTimers.current).forEach(clearTimeout);
+      typingTimers.current = {};
     };
-  }, [currentUserId, isLoggedIn, rawGroups, refreshGroup, refreshTransactions]);
+  }, [isLoggedIn, currentUserId, refreshGroup]);
+  // ☝️ Removed rawGroups from deps — groupIdsRef.current handles group ID tracking
 
   const groups = useMemo(() => rawGroups.map((group) => mapGroup(group, currentUserId, groupExtras[userIdOf(group)])), [currentUserId, groupExtras, rawGroups]);
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) || groups[0] || null;
@@ -171,7 +280,29 @@ export function LiveDataProvider({ children }) {
     return data;
   };
 
+  // ── Send message via socket for real-time, with HTTP fallback ──
   const sendMessage = async (groupId, text) => {
+    const socket = getSocket();
+    if (socket?.connected) {
+      return new Promise((resolve, reject) => {
+        socket.emit("chat:message", { groupId, text }, (response) => {
+          if (response?.success) {
+            resolve(mapMessage(response.message, currentUserId));
+          } else {
+            // Fallback to HTTP
+            sendMessageHTTP(groupId, text).then(resolve).catch(reject);
+          }
+        });
+        // Timeout fallback — if ack doesn't come in 3s, use HTTP
+        setTimeout(() => {
+          sendMessageHTTP(groupId, text).then(resolve).catch(reject);
+        }, 3000);
+      });
+    }
+    return sendMessageHTTP(groupId, text);
+  };
+
+  const sendMessageHTTP = async (groupId, text) => {
     const data = unwrap(await api.post(`/groups/${groupId}/chat/messages`, { text }));
     setGroupExtras((existing) => ({
       ...existing,
@@ -182,6 +313,21 @@ export function LiveDataProvider({ children }) {
     }));
     return mapMessage(data.message, currentUserId);
   };
+
+  // ── Typing indicator helpers ──
+  const sendTyping = useCallback((groupId) => {
+    const socket = getSocket();
+    if (socket?.connected && groupId) {
+      socket.emit("chat:typing", groupId);
+    }
+  }, []);
+
+  const sendStopTyping = useCallback((groupId) => {
+    const socket = getSocket();
+    if (socket?.connected && groupId) {
+      socket.emit("chat:stop-typing", groupId);
+    }
+  }, []);
 
   const recommendSplit = async (groupId, payload) => {
     const data = unwrap(await api.post(`/groups/${groupId}/recommend-split`, payload));
@@ -219,6 +365,10 @@ export function LiveDataProvider({ children }) {
     createGroup,
     addExpense,
     sendMessage,
+    sendTyping,
+    sendStopTyping,
+    typingUsers,
+    onlineUsers,
     recommendSplit,
     settleUp,
     confirmPayment,

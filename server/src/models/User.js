@@ -33,6 +33,9 @@ const userSchema = new mongoose.Schema(
 userSchema.methods.toSafeObject = function toSafeObject() {
   const user = this.toObject();
   delete user.passwordHash;
+  delete user.refreshTokenHash;
+  delete user.refreshTokenExpiresAt;
+  delete user.__v;
   return user;
 };
 

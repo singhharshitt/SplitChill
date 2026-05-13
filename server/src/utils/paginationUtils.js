@@ -130,13 +130,14 @@ async function paginate(query, options = {}) {
  * @returns {object} Formatted response
  */
 function buildPaginationResponse(items, nextCursor, endpoint, limit) {
+  const separator = endpoint.includes("?") ? "&" : "?";
   return {
     items,
     pagination: {
       hasMore: nextCursor !== null,
       nextCursor,
       nextUrl: nextCursor 
-        ? `${endpoint}?limit=${limit}&cursor=${nextCursor}`
+        ? `${endpoint}${separator}limit=${limit}&cursor=${nextCursor}`
         : null,
       count: items.length
     }

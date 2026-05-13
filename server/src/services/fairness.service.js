@@ -1,7 +1,9 @@
 const Group = require("../models/Group");
+const Expense = require("../models/Expense");
 const AppError = require("../utils/appError");
 const { calculateFairness, calculateShares } = require("../utils/fairnessEngine");
 const { ensureMembership } = require("./group.service");
+const aiService = require("./ai.service");
 
 async function getFairness(groupId, userId) {
   const group = await Group.findById(groupId).populate("members.user", "name email income");
@@ -9,7 +11,21 @@ async function getFairness(groupId, userId) {
   ensureMembership(group, userId);
 
   const fairness = calculateFairness(group);
-  return decorateFairness(group, fairness);
+  const decorated = decorateFairness(group, fairness);
+
+  // ── AI Fairness Explanation (non-blocking) ──
+  try {
+    const aiExplanation = await aiService.getFairnessExplanation({
+      fairness,
+      members: decorated.memberScores,
+      groupName: group.name,
+    });
+    decorated.aiExplanation = aiExplanation;
+  } catch {
+    decorated.aiExplanation = null;
+  }
+
+  return decorated;
 }
 
 async function recommendSplit(groupId, userId, { amount, participants, splitType = "ai-recommended" }) {
@@ -19,6 +35,56 @@ async function recommendSplit(groupId, userId, { amount, participants, splitType
 
   const normalizedParticipants = normalizeParticipants(participants, group);
   assertCustomShares(amount, normalizedParticipants, splitType);
+
+  // ── Try AI-powered recommendation first ──
+  if (splitType === "ai-recommended") {
+    try {
+      const totalExpenses = await Expense.countDocuments({ group: groupId });
+      const aiParticipants = normalizedParticipants.map((p) => {
+        const member = group.members.find((m) => String(m.user?._id || m.user) === String(p.user));
+        return {
+          user: String(p.user),
+          userName: member?.user?.name || String(p.user),
+          income: member?.user?.income || member?.incomeSnapshot || 0,
+          totalPaid: member?.totalPaid || 0,
+          totalShare: member?.totalShare || 0,
+          netBalance: member?.netBalance || 0,
+        };
+      });
+
+      const aiResult = await aiService.getAiSplitRecommendation({
+        amount,
+        participants: aiParticipants,
+        groupContext: {
+          fairnessScore: group.fairnessScore,
+          totalExpenses,
+        },
+        splitType,
+      });
+
+      if (aiResult.shares?.length) {
+        return {
+          splitType: "ai-recommended",
+          amount,
+          shares: aiResult.shares.map((s) => ({
+            user: s.user,
+            share: s.share,
+            reason: s.reason,
+            userName: findMemberName(group, s.user),
+          })),
+          explanation: aiResult.explanation,
+          confidence: aiResult.confidence,
+          splitStrategy: aiResult.splitStrategy,
+          aiModel: aiResult.model,
+          projectedFairness: projectFairness(group, aiResult.shares, amount),
+        };
+      }
+    } catch {
+      // Fall through to engine-based recommendation
+    }
+  }
+
+  // ── Fallback: fairness engine calculation ──
   const shares = calculateShares({
     amount,
     participants: normalizedParticipants,

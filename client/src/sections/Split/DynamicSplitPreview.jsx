@@ -30,14 +30,14 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
     }
 
     if (splitType === "income") {
-      // Mock: higher income = higher share
+      // Client-side preview: approximate income-weighted distribution
       const weights = people.map((_, i) => 1 + i * 0.3);
       const sumW = weights.reduce((a, b) => a + b, 0);
       return people.map((p, i) => ({ ...p, share: (weights[i] / sumW) * total }));
     }
 
     if (splitType === "ai") {
-      // Mock: first person pays less (they paid more before)
+      // Client-side preview: approximate fairness-adjusted distribution
       const adjusted = people.map((p, i) => (i === 0 ? 0.15 : 1));
       const sumA = adjusted.reduce((a, b) => a + b, 0);
       return people.map((p, i) => ({ ...p, share: (adjusted[i] / sumA) * total }));

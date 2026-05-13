@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Group = require("../models/Group");
 const Transaction = require("../models/Transaction");
 const User = require("../models/User");
@@ -54,12 +55,18 @@ async function settle(actorId, { groupId, payer, receiver, amount, note, receive
 
   let fairness = null;
   if (status === "completed") {
-    fairness = applySettlementToGroup(group, transaction);
-    await Promise.all([
-      group.save(),
-      User.updateOne({ _id: payer }, { $inc: { "stats.settlementsMade": 1 } }),
-      User.updateOne({ _id: receiver }, { $inc: { "stats.settlementsReceived": 1 } }),
-    ]);
+    // ── Atomic multi-document write via MongoDB session ──
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        fairness = applySettlementToGroup(group, transaction);
+        await group.save({ session });
+        await User.updateOne({ _id: payer }, { $inc: { "stats.settlementsMade": 1 } }, { session });
+        await User.updateOne({ _id: receiver }, { $inc: { "stats.settlementsReceived": 1 } }, { session });
+      });
+    } finally {
+      await session.endSession();
+    }
   }
 
   const populated = await Transaction.findById(transaction._id)
@@ -89,18 +96,27 @@ async function confirmPayment(actorId, transactionId, { status = "completed", pr
   }
 
   transaction.status = status;
-  if (providerReference) transaction.upi.providerReference = providerReference;
-  if (status === "completed") transaction.upi.confirmedAt = new Date();
+  if (providerReference || status === "completed") {
+    if (!transaction.upi) transaction.upi = {};
+    if (providerReference) transaction.upi.providerReference = providerReference;
+    if (status === "completed") transaction.upi.confirmedAt = new Date();
+  }
 
   let fairness = null;
   if (status === "completed") {
-    fairness = applySettlementToGroup(group, transaction);
-    await Promise.all([
-      group.save(),
-      transaction.save(),
-      User.updateOne({ _id: transaction.payer }, { $inc: { "stats.settlementsMade": 1 } }),
-      User.updateOne({ _id: transaction.receiver }, { $inc: { "stats.settlementsReceived": 1 } }),
-    ]);
+    // ── Atomic multi-document write via MongoDB session ──
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        fairness = applySettlementToGroup(group, transaction);
+        await group.save({ session });
+        await transaction.save({ session });
+        await User.updateOne({ _id: transaction.payer }, { $inc: { "stats.settlementsMade": 1 } }, { session });
+        await User.updateOne({ _id: transaction.receiver }, { $inc: { "stats.settlementsReceived": 1 } }, { session });
+      });
+    } finally {
+      await session.endSession();
+    }
   } else {
     await transaction.save();
   }
@@ -152,7 +168,7 @@ async function getTransactions(userId, options = {}) {
   });
 
   const endpoint = groupId 
-    ? `/groups/${groupId}/transactions`
+    ? `/transactions?groupId=${groupId}`
     : `/transactions`;
 
   return buildPaginationResponse(items, nextCursor, endpoint, pageLimit);
@@ -164,23 +180,33 @@ async function applyProviderPaymentResult({ transactionId, providerReference, st
   const group = await Group.findById(transaction.group);
   if (!group) throw new AppError("Group not found", 404);
 
+  // ── Idempotency: skip if already applied ──
   if (["completed", "reconciled"].includes(transaction.status)) {
     return { transaction, group, fairness: null, alreadyApplied: true };
   }
 
-  if (providerReference) transaction.upi.providerReference = providerReference;
+  if (providerReference || status === "succeeded") {
+    if (!transaction.upi) transaction.upi = {};
+    if (providerReference) transaction.upi.providerReference = providerReference;
+    if (status === "succeeded") transaction.upi.confirmedAt = new Date();
+  }
   transaction.status = status === "succeeded" ? "completed" : status;
-  if (status === "succeeded") transaction.upi.confirmedAt = new Date();
 
   let fairness = null;
   if (status === "succeeded") {
-    fairness = applySettlementToGroup(group, transaction);
-    await Promise.all([
-      group.save(),
-      transaction.save(),
-      User.updateOne({ _id: transaction.payer }, { $inc: { "stats.settlementsMade": 1 } }),
-      User.updateOne({ _id: transaction.receiver }, { $inc: { "stats.settlementsReceived": 1 } }),
-    ]);
+    // ── Atomic multi-document write via MongoDB session ──
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        fairness = applySettlementToGroup(group, transaction);
+        await group.save({ session });
+        await transaction.save({ session });
+        await User.updateOne({ _id: transaction.payer }, { $inc: { "stats.settlementsMade": 1 } }, { session });
+        await User.updateOne({ _id: transaction.receiver }, { $inc: { "stats.settlementsReceived": 1 } }, { session });
+      });
+    } finally {
+      await session.endSession();
+    }
   } else {
     await transaction.save();
   }

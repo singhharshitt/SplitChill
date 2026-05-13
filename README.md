@@ -4,47 +4,67 @@
 [![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20Tailwind-0ea5e9?style=for-the-badge)](#-tech-stack)
 [![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-16a34a?style=for-the-badge)](#-tech-stack)
 [![Database](https://img.shields.io/badge/Database-MongoDB-10b981?style=for-the-badge)](#-tech-stack)
-[![DevOps](https://img.shields.io/badge/DevOps-Docker%20%2B%20AWS%20EC2-2563eb?style=for-the-badge)](#-deployment)
+[![AI](https://img.shields.io/badge/AI-Groq%20LLMs-8b5cf6?style=for-the-badge)](#-ai-integration)
+[![OCR](https://img.shields.io/badge/OCR-OCRSpace%20%2B%20Tesseract-f59e0b?style=for-the-badge)](#-ocr-receipt-scanning)
 
-SplitChill is an AI-powered expense splitting platform designed to solve a real problem that most split apps ignore: fairness.
-
-Most tools optimize for equal splits. SplitChill optimizes for context-aware fairness using income sensitivity, participation behavior, contribution history, and predictive intelligence.
-
----
-
-## Why This Project Stands Out
-
-- Moves from static equal-split logic to intelligent fairness-based distribution.
-- Blends product thinking with data-driven decisioning (fairness score + predictive suggestions).
-- Built with full-stack + DevOps mindset: UI analytics, service APIs, containerization, and cloud deployment path.
-- Designed to be both user-friendly for daily groups and technically strong for interviews and production roadmaps.
+SplitChill is a fairness-powered expense splitting platform that goes beyond equal splits. It uses a real-time fairness engine, AI-powered recommendations via Groq LLMs, and OCR receipt scanning to make group finance truly equitable.
 
 ---
 
 ## 🚀 Features
 
-- Smart Expense Splitting
-  - Equal split
-  - Income-based split
-  - Usage-based split
-  - AI-recommended split
-- Fairness Engine (core innovation)
-  - Fairness Score from 0 to 100
-  - Tracks payment behavior, usage, and settlement delay
-- Predictive Suggestions
-  - Suggests who should pay next
-  - Recommends balancing actions for healthier group dynamics
-- Analytics Dashboard
-  - Spending trends
-  - Contribution imbalance insights
-  - Group fairness trendline
-- Conflict Detection
-  - Detects early imbalance signals
-  - Nudges users before disputes happen
-- Group Management
-  - Create groups (trip, rent, events)
-  - Add participants and roles
-  - Track shared expenses in one timeline
+### Core Expense Splitting
+- **Equal split** — divide evenly among participants
+- **Income-based split** — weighted by income level
+- **Usage-based split** — weighted by consumption
+- **AI-recommended split** — Groq LLM analyzes group context and recommends optimal shares
+- **Custom split** — manual allocation
+
+### Fairness Engine
+- Dynamic Fairness Score (0-100) for every group
+- Tracks payment behavior, usage patterns, and settlement delays
+- AI-powered fairness explanations via Groq Qwen 3 32B
+
+### AI Integration (Groq)
+- **Split Recommendations** — Llama 4 Maverick analyzes income, history, and balance to recommend shares
+- **Fairness Explanations** — Qwen 3 32B generates human-readable fairness assessments
+- **Predictive Suggestions** — Llama 4 Scout predicts next expenses and suggests who should pay
+- **Analytics Summaries** — Llama 3.3 70B generates natural-language dashboard insights
+- Structured prompt templates with JSON output parsing
+- Automatic fallback chain if primary model is unavailable
+
+### OCR Receipt Scanning
+- Upload receipt images (JPEG, PNG, WebP, PDF)
+- **OCRSpace** cloud API for primary extraction
+- **Tesseract.js** local fallback when cloud is unavailable
+- Automatic field extraction: merchant, date, total, line items
+- Confidence scoring and manual correction support
+
+### Real-Time Collaboration
+- Socket.io authenticated connections
+- Live chat between group members
+- Typing indicators and online/offline presence
+- Instant message delivery and persistence
+- Reconnect recovery with message backfill
+- Real-time balance and fairness updates across users
+
+### Predictive Suggestions
+- Suggests who should pay next based on contribution patterns
+- Recommends optimal split types for group health
+- Settlement optimization to minimize transactions
+
+### Analytics Dashboard
+- Spending trends and expense velocity
+- Contribution imbalance visualization
+- Fairness score trendline
+- AI-generated summary cards
+
+### Payment Integration
+- HyperSwitch payment gateway for automated settlements
+- UPI deep link generation for manual settlements
+- Webhook-verified payment confirmation
+- Atomic balance updates via MongoDB transactions
+- Idempotent payment reconciliation
 
 ---
 
@@ -52,35 +72,22 @@ Most tools optimize for equal splits. SplitChill optimizes for context-aware fai
 
 ### 1. Problem
 Traditional split apps assume everyone should pay equally. Real life is different:
-- incomes are different,
-- usage is different,
-- effort and indirect contributions are different.
+- incomes are different
+- usage is different
+- effort and indirect contributions are different
 
-### 2. Core Fairness Idea
-Instead of forcing equal split, SplitChill computes a contextual share.
+### 2. Fairness Engine
+Instead of forcing equal splits, SplitChill computes contextual shares using:
+- income factor
+- participation level
+- prior contribution ratio
+- payment consistency
 
-Basic weighted share formula:
+### 3. AI Layer
+When users select "AI-recommended" split, the backend sends group context to Groq LLMs which analyze history and return optimized share allocations with explanations. If AI is unavailable, the fairness engine provides deterministic fallback.
 
-$$
-\text{User Share} = \text{Total Expense} \times \frac{\text{User Weight}}{\sum \text{All User Weights}}
-$$
-
-Where user weight can include:
-- income factor,
-- participation level,
-- prior contribution ratio,
-- payment consistency.
-
-### 3. Fairness Score
-Each user/group gets a dynamic fairness score (0-100):
-- starts at baseline,
-- increases with balanced contributions,
-- decreases with repeated underpayment or delays.
-
-### 4. Predictive Layer
-The system analyzes recent history to suggest:
-- who should pay next,
-- what split option best restores balance.
+### 4. OCR Pipeline
+Users can upload receipt images. The backend runs OCRSpace (or Tesseract.js fallback) to extract text, then parses merchant, date, total, and line items using pattern matching.
 
 ---
 
@@ -90,47 +97,29 @@ The system analyzes recent history to suggest:
 - React
 - Tailwind CSS
 - Chart.js
-- React Router
+- Socket.io Client
 
 ### Backend
-- Node.js
-- Express.js
-- Mongoose
+- Node.js + Express
+- Mongoose (MongoDB)
+- Socket.io
+- Multer (file uploads)
+
+### AI & OCR
+- Groq API (LLM inference)
+- OCRSpace API (cloud OCR)
+- Tesseract.js (local OCR fallback)
+
+### Payments
+- HyperSwitch (payment gateway)
+- UPI deep links
 
 ### Database
-- MongoDB
+- MongoDB (with replica set for transactions)
 
-### DevOps & Delivery
-- Docker
-- AWS EC2
-- GitHub Actions (CI/CD)
-
----
-
-## 📁 Folder Structure
-
-~~~text
-SplitChill/
-├── client/
-│   ├── public/
-│   ├── src/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── package.json
-│   └── vite.config.js
-├── server/
-│   ├── package.json
-│   └── package-lock.json
-├── docker/
-├── docker-compose.yml
-├── .gitignore
-└── README.md
-~~~
+### DevOps
+- Docker Compose
+- Render.yaml
 
 ---
 
@@ -139,8 +128,7 @@ SplitChill/
 ### Prerequisites
 - Node.js 18+
 - npm 9+
-- MongoDB (local or cloud URI)
-- Git
+- MongoDB (local, Docker, or Atlas)
 
 ### 1) Clone the repository
 ~~~bash
@@ -148,193 +136,107 @@ git clone https://github.com/singhharshitt/SplitChill.git
 cd SplitChill
 ~~~
 
-### 2) Frontend setup
+### 2) Backend setup
+~~~bash
+cd server
+npm install
+cp .env.example .env
+# Edit .env with your API keys
+npm run dev
+~~~
+
+### 3) Frontend setup
 ~~~bash
 cd client
 npm install
 npm run dev
 ~~~
-Frontend will run on Vite default URL:
-- http://localhost:5173
 
-### 3) Backend setup
-Current repo snapshot has backend dependencies configured, and API implementation can be added under server.
-
-~~~bash
-cd server
-npm install
-~~~
-
-Recommended next scripts for server package.json:
-~~~json
-{
-  "scripts": {
-    "dev": "nodemon index.js",
-    "start": "node index.js"
-  }
-}
-~~~
-
-### 4) Environment variables (example)
-Create env files for local development:
-
+### 4) Environment variables
 ~~~env
-# server/.env
-PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/splitchill
-CLIENT_URL=http://localhost:5173
-~~~
+# Required
+DB_URI=mongodb+srv://...
+JWT_SECRET=your-secret-here
+JWT_REFRESH_SECRET=your-refresh-secret
 
-~~~env
-# client/.env
-VITE_API_URL=http://localhost:5000/api
+# AI (Groq)
+groq=gsk_your_groq_api_key
+
+# OCR
+OCRSPACE=your_ocrspace_key
+
+# Payments
+HyperID=your_hyperswitch_api_key
+HYPERSWITCH_BASE_URL=https://api.hyperswitch.io
+
+# Optional
+Mistral=your_mistral_key
+REDIS_URL=redis://127.0.0.1:6379
 ~~~
 
 ---
 
 ## 🐳 Docker Setup
 
-The repository includes docker scaffolding. A typical local run flow:
-
 ~~~bash
 docker compose up --build
 ~~~
 
-Expected services in production-ready compose:
-- client (React app)
-- server (Node/Express API)
-- mongo (MongoDB container)
-
-Stop containers:
-
-~~~bash
-docker compose down
-~~~
-
----
-
-## ☁️ Deployment (AWS EC2)
-
-### Quick EC2 flow
-1. Launch Ubuntu EC2 instance.
-2. Open ports 22, 80, 443 (and 5173/5000 only if needed for testing).
-3. Install Docker and Docker Compose plugin.
-4. Clone repository on EC2.
-5. Add production env values.
-6. Run:
-
-~~~bash
-docker compose up -d --build
-~~~
-
-7. Configure Nginx reverse proxy and TLS (LetsEncrypt) for production domain.
-
-### CI/CD with GitHub Actions
-Typical pipeline:
-- On push to main: test, build images, deploy to EC2 via SSH.
-- Keep secrets in GitHub Actions secrets (EC2_HOST, EC2_KEY, etc.).
+Services: client, server, mongo (replica set), redis.
 
 ---
 
 ## 🔌 API Endpoints
 
-Below are baseline v1 endpoint examples for SplitChill backend:
-
 ### Health
-- GET /api/health
+- `GET /api/health` — service status + MongoDB state
+- `GET /api/health/ready` — readiness probe (503 when DB is down)
 
-~~~json
-{
-  "status": "ok",
-  "service": "SplitChill API"
-}
-~~~
+### Auth
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh` — httpOnly cookie-based
+- `POST /api/auth/logout`
 
 ### Groups
-- POST /api/groups
-- GET /api/groups/:groupId
+- `GET /api/groups`
+- `POST /api/groups`
+- `GET /api/groups/:id`
+- `POST /api/groups/:id/add-member`
 
 ### Expenses
-- POST /api/groups/:groupId/expenses
-- GET /api/groups/:groupId/expenses
+- `POST /api/groups/:id/expenses`
+- `GET /api/groups/:id/expenses`
 
-### Fairness
-- GET /api/groups/:groupId/fairness-score
-- POST /api/groups/:groupId/recommend-split
+### AI & Fairness
+- `GET /api/groups/:id/fairness` — score + AI explanation
+- `POST /api/groups/:id/recommend-split` — AI-powered recommendation
 
-### Predictions
-- GET /api/groups/:groupId/suggest-next-payer
+### OCR
+- `POST /api/groups/:id/scan-receipt` — upload receipt image
 
-Example create expense request:
+### Analytics & Predictions
+- `GET /api/groups/:id/analytics` — data + AI summary
+- `GET /api/groups/:id/suggestions` — engine + AI predictions
 
-~~~json
-{
-  "title": "Dinner",
-  "amount": 2400,
-  "paidBy": "user_123",
-  "participants": ["user_123", "user_456", "user_789"],
-  "splitType": "ai-recommended"
-}
-~~~
+### Chat
+- `GET /api/groups/:id/chat/messages`
+- `POST /api/groups/:id/chat/messages`
 
----
-
-## 📊 Screenshots / UI Preview
-
-Add your UI images here for better portfolio impact:
-
-~~~text
-/docs/screenshots/
-  dashboard.png
-  group-details.png
-  fairness-analytics.png
-  add-expense-flow.png
-~~~
-
-Suggested markdown blocks:
-
-~~~md
-![Dashboard](docs/screenshots/dashboard.png)
-![Fairness Analytics](docs/screenshots/fairness-analytics.png)
-~~~
+### Transactions & Payments
+- `POST /api/settle`
+- `PATCH /api/transactions/:id/confirm`
+- `GET /api/transactions`
 
 ---
 
 ## 🧪 Future Enhancements
 
-- Advanced ML fairness model with explainable AI outputs.
-- Real-time notifications and settlement reminders.
-- UPI and payment gateway integrations.
-- Native mobile app (React Native/Flutter).
-- Role-based group governance and moderation.
-- Multi-currency and travel-mode optimizations.
-- Fraud/abuse pattern detection for shared finance groups.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome.
-
-~~~bash
-# 1. Fork the repo
-# 2. Create a feature branch
-git checkout -b feat/your-feature-name
-
-# 3. Commit changes
-git commit -m "feat: add your feature"
-
-# 4. Push and open a pull request
-git push origin feat/your-feature-name
-~~~
-
-Please keep pull requests focused, documented, and testable.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
+- Advanced ML fairness model with explainable outputs
+- Native mobile app (React Native)
+- Multi-currency support
+- Role-based group governance
+- Read receipts for chat
 
 ---
 

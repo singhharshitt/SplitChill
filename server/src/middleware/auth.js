@@ -9,7 +9,8 @@ const protect = asyncHandler(async (req, _res, next) => {
 
   if (!token) throw new AppError("Authentication token required", 401);
 
-  const payload = jwt.verify(token, process.env.JWT_SECRET || "dev_split_chill_secret");
+  if (!process.env.JWT_SECRET) throw new AppError("JWT_SECRET is not configured", 500);
+  const payload = jwt.verify(token, process.env.JWT_SECRET);
   const user = await User.findById(payload.sub);
   if (!user) throw new AppError("Authenticated user no longer exists", 401);
 

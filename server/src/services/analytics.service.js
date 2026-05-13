@@ -4,6 +4,7 @@ const Transaction = require("../models/Transaction");
 const AppError = require("../utils/appError");
 const { ensureMembership } = require("./group.service");
 const { roundMoney } = require("../utils/fairnessEngine");
+const aiService = require("./ai.service");
 
 async function getAnalytics(groupId, userId) {
   const group = await Group.findById(groupId).populate("members.user", "name email");
@@ -35,7 +36,7 @@ async function getAnalytics(groupId, userId) {
   const imbalance = paymentVsUsage.reduce((sum, member) => sum + Math.abs(member.netBalance), 0) / 2;
   const groupHealthScore = Math.round(Math.max(0, Math.min(100, group.fairnessScore - (imbalance / Math.max(totalExpense, 1)) * 20)));
 
-  return {
+  const analytics = {
     totals: {
       expenses: roundMoney(totalExpense),
       settlements: roundMoney(settlementVolume),
@@ -47,6 +48,19 @@ async function getAnalytics(groupId, userId) {
     groupHealthScore,
     expenseVelocity: buildExpenseVelocity(expenses),
   };
+
+  // ── AI Analytics Summary (non-blocking) ──
+  try {
+    const aiSummary = await aiService.getAnalyticsSummary({
+      analytics,
+      groupName: group.name,
+    });
+    analytics.aiSummary = aiSummary;
+  } catch {
+    analytics.aiSummary = null;
+  }
+
+  return analytics;
 }
 
 function buildExpenseVelocity(expenses) {

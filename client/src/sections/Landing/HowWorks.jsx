@@ -181,7 +181,7 @@ export default function HowWorks() {
           top="50%" left="5%"
           icon={<Plus size={22} />}
           title="Add an expense"
-          subtitle="Upload receipt or enter cost"
+          subtitle="Enter cost details"
           color="text-black/70"
           bgColor=""
         />
@@ -192,7 +192,7 @@ export default function HowWorks() {
           top="12%" left="45%"
           icon={<Brain size={22} />}
           title="SplitChill analyzes"
-          subtitle="AI reads who paid vs. who consumed"
+          subtitle="Fairness engine analyzes who paid vs. who consumed"
           color="text-black/70"
           bgColor=""
         />

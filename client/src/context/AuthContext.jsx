@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
-import api, { getApiError, REFRESH_TOKEN_KEY, TOKEN_KEY, unwrap, USER_KEY } from '../api/client.js';
+import api, { getApiError, TOKEN_KEY, unwrap, USER_KEY, REFRESH_TOKEN_KEY } from '../api/client.js';
 
 const AuthContext = createContext(null);
 
@@ -64,8 +64,10 @@ export function AuthProvider({ children }) {
         password: credentials.password,
       }));
 
+      // Access token in localStorage (short-lived, 15m TTL)
+      // Refresh token is now in httpOnly cookie — NOT stored client-side
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+      localStorage.removeItem(REFRESH_TOKEN_KEY); // clear any legacy value
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
       setIsLoggedIn(true);
@@ -85,7 +87,7 @@ export function AuthProvider({ children }) {
       }));
 
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
       setIsLoggedIn(true);

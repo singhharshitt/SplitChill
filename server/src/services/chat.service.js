@@ -44,4 +44,27 @@ async function getMessages(groupId, userId, options = {}) {
   );
 }
 
-module.exports = { createMessage, getMessages };
+/**
+ * Fetch messages created after a given timestamp for reconnection recovery.
+ * Capped at 100 messages to prevent abuse.
+ */
+async function getMessagesSince(groupId, userId, since) {
+  const group = await Group.findById(groupId);
+  if (!group) throw new AppError("Group not found", 404);
+  ensureMembership(group, userId);
+
+  const sinceDate = new Date(since);
+  if (Number.isNaN(sinceDate.getTime())) throw new AppError("Invalid since timestamp", 400);
+
+  const messages = await ChatMessage.find({
+    group: groupId,
+    createdAt: { $gt: sinceDate },
+  })
+    .sort({ createdAt: 1 })
+    .limit(100)
+    .populate("sender", "name email avatar");
+
+  return messages;
+}
+
+module.exports = { createMessage, getMessages, getMessagesSince };
