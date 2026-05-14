@@ -75,4 +75,4 @@ async function logout(userId) {
   );
 }
 
-module.exports = { login, logout, refresh, register };
+module.exports = { issueSession, login, logout, refresh, register };

@@ -1,6 +1,7 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const AppError = require("../utils/appError");
 
 const UPLOAD_DIR = path.join(__dirname, "../../uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -21,7 +22,7 @@ const upload = multer({
     const allowed = /jpeg|jpg|png|webp|bmp|tiff|pdf/;
     const extOk = allowed.test(path.extname(file.originalname).toLowerCase());
     const mimeOk = allowed.test(file.mimetype);
-    cb(extOk || mimeOk ? null : new Error("Only image files and PDFs are allowed"), extOk || mimeOk);
+    cb(extOk || mimeOk ? null : new AppError("Unable to detect a valid bill or receipt.", 400), extOk || mimeOk);
   },
 });
 

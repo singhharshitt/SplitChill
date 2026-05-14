@@ -10,7 +10,12 @@ const protect = asyncHandler(async (req, _res, next) => {
   if (!token) throw new AppError("Authentication token required", 401);
 
   if (!process.env.JWT_SECRET) throw new AppError("JWT_SECRET is not configured", 500);
-  const payload = jwt.verify(token, process.env.JWT_SECRET);
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    throw new AppError("Invalid or expired authentication token", 401);
+  }
   const user = await User.findById(payload.sub);
   if (!user) throw new AppError("Authenticated user no longer exists", 401);
 

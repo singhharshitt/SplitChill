@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Payment = require("../models/Payment");
 const PaymentEvent = require("../models/PaymentEvent");
 const { applyProviderPaymentResult } = require("../services/transaction.service");
@@ -25,6 +26,8 @@ function toLocalStatus(status) {
 }
 
 async function reconcilePayments() {
+  if (mongoose.connection.readyState !== 1) return;
+
   const due = await Payment.find({
     provider: "hyperswitch",
     status: { $in: ["pending", "processing"] },

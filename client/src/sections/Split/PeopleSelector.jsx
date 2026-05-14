@@ -28,6 +28,7 @@ export default function PeopleSelector({ people, onAdd, onRemove, allowAdd = tru
             </div>
             <span className="text-sm text-black font-medium">{p.name}</span>
             <button
+              type="button"
               onClick={() => onRemove(p.id)}
               className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
             >
@@ -47,6 +48,7 @@ export default function PeopleSelector({ people, onAdd, onRemove, allowAdd = tru
               className="px-4 py-2 rounded-full border border-black/10 text-sm outline-none focus:border-[#A3FDA7] focus:ring-1 focus:ring-[#A3FDA7]/30 w-36 transition-all"
             />
             <button
+              type="button"
               onClick={handleAdd}
               className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center text-sm hover:scale-105 transition-transform"
             >
@@ -55,6 +57,7 @@ export default function PeopleSelector({ people, onAdd, onRemove, allowAdd = tru
           </div>
         ) : allowAdd ? (
           <button
+            type="button"
             onClick={() => setShowInput(true)}
             className="w-10 h-10 rounded-full border border-dashed border-black/20 flex items-center justify-center text-gray-400 hover:text-black hover:border-black/40 hover:bg-black/[0.02] transition-all duration-300"
           >

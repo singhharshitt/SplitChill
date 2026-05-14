@@ -3,10 +3,31 @@ import InsightCard from "../../components/InsightCard.jsx";
 import ToggleSwitch from "../../components/ToggleSwitch.jsx";
 import { cardBase, sans, serif } from "../../lib/uiTokens.js";
 
-export default function IncomeSettings() {
-  const [income, setIncome] = useState("75000");
-  const [keepPrivate, setKeepPrivate] = useState(true);
+export default function IncomeSettings({ income = 0, keepPrivate = true, onSave }) {
+  const [draftIncome, setDraftIncome] = useState("");
+  const [draftPrivate, setDraftPrivate] = useState(null);
   const [focused, setFocused] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const displayedIncome = draftIncome === "" ? String(income || 0) : draftIncome;
+  const displayedPrivate = draftPrivate === null ? Boolean(keepPrivate) : draftPrivate;
+  const isDirty = Number(displayedIncome || 0) !== Number(income || 0) || displayedPrivate !== Boolean(keepPrivate);
+
+  const save = async () => {
+    setIsSaving(true);
+    setFeedback("");
+    const result = await onSave?.({
+      income: Number(displayedIncome || 0),
+      preferences: { keepIncomePrivate: displayedPrivate },
+    });
+    setIsSaving(false);
+    setFeedback(result?.success ? "Income settings synced." : result?.error || "Could not save income settings.");
+    if (result?.success) {
+      setDraftIncome("");
+      setDraftPrivate(null);
+    }
+  };
 
   return (
     <div className={`${cardBase} relative overflow-hidden`}>
@@ -28,45 +49,45 @@ export default function IncomeSettings() {
         </p>
 
         <div className="relative max-w-xs mb-5">
-          <span
-            className={`absolute left-4 top-1/2 -translate-y-1/2 text-xl font-serif transition-colors duration-300 ${
-              focused ? "text-emerald-600" : "text-black/20"
-            }`}
-          >
-            ₹
+          <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-xl font-serif transition-colors duration-300 ${focused ? "text-emerald-600" : "text-black/20"}`}>
+            Rs
           </span>
           <input
             type="number"
-            value={income}
-            onChange={(e) => setIncome(e.target.value)}
+            min="0"
+            value={displayedIncome}
+            onChange={(event) => setDraftIncome(event.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            className="w-full pl-10 pr-4 py-3 bg-[#FAFAF8] rounded-xl text-xl font-serif text-black border border-black/5 outline-none focus:border-[#A3FDA7]/40 focus:ring-1 focus:ring-[#A3FDA7]/20 transition-all placeholder:text-black/10"
+            className="w-full pl-12 pr-4 py-3 bg-[#FAFAF8] rounded-xl text-xl font-serif text-black border border-black/5 outline-none focus:border-[#A3FDA7]/40 focus:ring-1 focus:ring-[#A3FDA7]/20 transition-all placeholder:text-black/10"
           />
-          {focused && (
-            <div
-              className="absolute -inset-3 rounded-2xl pointer-events-none transition-opacity duration-500"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(163,253,167,0.12) 0%, transparent 70%)",
-              }}
-            />
-          )}
         </div>
 
         <div className="flex items-center gap-3 mb-6">
           <ToggleSwitch
-            checked={keepPrivate}
-            onChange={setKeepPrivate}
+            checked={displayedPrivate}
+            onChange={setDraftPrivate}
             label="Keep this private from others"
-            description="Only SplitChill's AI uses this — never shared with your group."
+            description="Only SplitChill's AI uses this - never shared with your group."
           />
         </div>
 
         <InsightCard
-          text="Your contributions may be adjusted to reduce imbalance. Updating income improves fairness accuracy."
+          text="Income updates sync into group fairness snapshots and future split recommendations."
           small
         />
+
+        <div className="mt-5 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={save}
+            disabled={!isDirty || isSaving}
+            className="rounded-full bg-black px-5 py-2.5 text-xs font-medium text-white disabled:opacity-40"
+          >
+            {isSaving ? "Saving..." : "Save income"}
+          </button>
+          {feedback && <p className="text-xs text-gray-500">{feedback}</p>}
+        </div>
       </div>
     </div>
   );

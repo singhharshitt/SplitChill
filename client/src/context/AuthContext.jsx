@@ -5,8 +5,8 @@ import api, { getApiError, TOKEN_KEY, unwrap, USER_KEY, REFRESH_TOKEN_KEY } from
 const AuthContext = createContext(null);
 
 const getStoredUser = () => {
-  const storedUser = localStorage.getItem(USER_KEY);
-  const storedToken = localStorage.getItem(TOKEN_KEY);
+  const storedUser = sessionStorage.getItem(USER_KEY) || localStorage.getItem(USER_KEY);
+  const storedToken = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
 
   if (!storedUser || !storedToken) return null;
 
@@ -16,6 +16,8 @@ const getStoredUser = () => {
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
       return null;
   }
 };
@@ -23,13 +25,13 @@ const getStoredUser = () => {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getStoredUser()));
-  const [isLoading, setIsLoading] = useState(() => Boolean(localStorage.getItem(TOKEN_KEY)));
+  const [isLoading, setIsLoading] = useState(() => Boolean(sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY)));
 
   useEffect(() => {
     let cancelled = false;
 
     async function restoreSession() {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
       if (!token) {
         setIsLoading(false);
         return;
@@ -38,7 +40,8 @@ export function AuthProvider({ children }) {
       try {
         const data = unwrap(await api.get('/users/me'));
         if (cancelled) return;
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        const activeStorage = sessionStorage.getItem(TOKEN_KEY) ? sessionStorage : localStorage;
+        activeStorage.setItem(USER_KEY, JSON.stringify(data.user));
         setUser(data.user);
         setIsLoggedIn(true);
       } catch {
@@ -46,6 +49,8 @@ export function AuthProvider({ children }) {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(USER_KEY);
         setUser(null);
         setIsLoggedIn(false);
       } finally {
@@ -69,11 +74,46 @@ export function AuthProvider({ children }) {
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.removeItem(REFRESH_TOKEN_KEY); // clear any legacy value
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
       setUser(data.user);
       setIsLoggedIn(true);
       return { success: true };
     } catch (error) {
       return { success: false, error: getApiError(error, 'Login failed. Please check your details.') };
+    }
+  };
+
+  const applyUserUpdate = (nextUser) => {
+    if (!nextUser) return;
+    const activeStorage = sessionStorage.getItem(TOKEN_KEY) ? sessionStorage : localStorage;
+    activeStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
+  const updateProfile = async (payload) => {
+    try {
+      const data = unwrap(await api.patch('/users/me', payload));
+      applyUserUpdate(data.user);
+      return { success: true, user: data.user };
+    } catch (error) {
+      return { success: false, error: getApiError(error, 'Could not update profile.') };
+    }
+  };
+
+  const demoLogin = async (persona) => {
+    try {
+      const data = unwrap(await api.post('/demo/login', { persona }));
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      sessionStorage.setItem(TOKEN_KEY, data.token);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      setUser(data.user);
+      setIsLoggedIn(true);
+      return { success: true, user: data.user };
+    } catch (error) {
+      return { success: false, error: getApiError(error, 'Demo login is unavailable.') };
     }
   };
 
@@ -89,6 +129,8 @@ export function AuthProvider({ children }) {
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
       setUser(data.user);
       setIsLoggedIn(true);
       return { success: true };
@@ -102,6 +144,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     setUser(null);
     setIsLoggedIn(false);
   };
@@ -111,8 +155,11 @@ export function AuthProvider({ children }) {
     isLoggedIn,
     isLoading,
     login,
+    demoLogin,
     signup,
     logout,
+    updateProfile,
+    applyUserUpdate,
   };
 
   if (isLoading) {

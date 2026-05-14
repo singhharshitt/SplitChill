@@ -48,6 +48,7 @@ const envSchema = z.object({
   DISABLE_BACKGROUND_JOBS: z.string().optional(),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().default(300),
+  DEMO_AUTH_ENABLED: z.string().optional(),
 });
 
 function validateEnv() {

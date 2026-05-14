@@ -20,8 +20,11 @@ export default function AmountInput({ value, onChange }) {
           ₹
         </span>
         <input
-          type="number"
-          min="0"
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]*[.,]?[0-9]*"
+          autoComplete="off"
+          spellCheck={false}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setFocused(true)}

@@ -14,6 +14,19 @@ const userStatsSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const userPreferencesSchema = new mongoose.Schema(
+  {
+    defaultSplit: { type: String, enum: ["equal", "ai", "custom"], default: "ai" },
+    paymentReminders: { type: Boolean, default: true },
+    fairnessAlerts: { type: Boolean, default: true },
+    groupActivity: { type: Boolean, default: false },
+    keepIncomePrivate: { type: Boolean, default: true },
+    shareInsights: { type: Boolean, default: true },
+    aiPersonalization: { type: Boolean, default: true },
+  },
+  { _id: false },
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -24,8 +37,10 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ["user", "admin"], default: "user" },
     phone: { type: String, trim: true },
     phoneVerifiedAt: { type: Date },
+    upi: { type: String, trim: true },
     income: { type: Number, default: 0, min: 0 },
     stats: { type: userStatsSchema, default: () => ({}) },
+    preferences: { type: userPreferencesSchema, default: () => ({}) },
   },
   { timestamps: true },
 );

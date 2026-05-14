@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { parseCurrencyInput } from "../../lib/currency.js";
 
 const cardBase =
   "bg-white rounded-[24px] p-6 md:p-8 shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04] transition-all duration-300";
@@ -8,7 +9,7 @@ const serif = "font-serif text-black tracking-tight";
 
 export default function SplitPreview({ amount, people, splitType, customShares, onCustomChange, recommendedShares }) {
   const shares = useMemo(() => {
-    const total = parseFloat(amount) || 0;
+    const total = parseCurrencyInput(amount);
     if (!people.length || total <= 0) return [];
     if (recommendedShares?.length && splitType !== "custom") {
       return people.map((person) => {
@@ -25,7 +26,7 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
     if (splitType === "custom") {
       return people.map((p) => ({
         ...p,
-        share: parseFloat(customShares[p.id]) || 0,
+        share: parseCurrencyInput(customShares[p.id]),
       }));
     }
 
@@ -47,7 +48,7 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
   }, [amount, people, splitType, customShares, recommendedShares]);
 
   const allocated = shares.reduce((s, p) => s + p.share, 0);
-  const total = parseFloat(amount) || 0;
+  const total = parseCurrencyInput(amount);
   const remaining = Math.round((total - allocated) * 100) / 100;
   const fullyAllocated = Math.abs(remaining) < 0.01;
 
@@ -81,8 +82,11 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
               <div className="flex items-center gap-1">
                 <span className="text-xs text-gray-400">₹</span>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={customShares[p.id] || ""}
                   onChange={(e) => onCustomChange(p.id, e.target.value)}
                   className="w-20 text-right text-sm font-serif bg-white border border-black/5 rounded-lg px-2 py-1 outline-none focus:border-[#A3FDA7] transition-colors"

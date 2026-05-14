@@ -21,4 +21,9 @@ const addMember = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { group } });
 });
 
-module.exports = { addMember, createGroup, getGroup, getGroups };
+const createDirectChat = asyncHandler(async (req, res) => {
+  const group = await groupService.getOrCreateDirectChat(req.user, req.body);
+  res.status(201).json({ success: true, data: { group } });
+});
+
+module.exports = { addMember, createDirectChat, createGroup, getGroup, getGroups };

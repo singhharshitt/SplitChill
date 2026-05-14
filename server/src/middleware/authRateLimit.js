@@ -6,7 +6,7 @@ const authLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { success: false, error: "Too many auth attempts. Please try again later." },
-  keyGenerator: (req) => req.ip,
+  // Use default keyGenerator — express-rate-limit v8 handles IPv6 correctly by default
 });
 
 const loginLimiter = rateLimit({
@@ -15,7 +15,6 @@ const loginLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { success: false, error: "Too many login attempts. Please try again later." },
-  keyGenerator: (req) => req.ip,
 });
 
 module.exports = { authLimiter, loginLimiter };

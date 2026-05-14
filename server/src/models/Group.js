@@ -28,7 +28,8 @@ const fairnessSnapshotSchema = new mongoose.Schema(
 const groupSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 100 },
-    type: { type: String, enum: ["trip", "rent", "event", "dining", "general"], default: "general" },
+    type: { type: String, enum: ["trip", "rent", "event", "dining", "general", "direct"], default: "general" },
+    directKey: { type: String, trim: true },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     members: { type: [memberSchema], default: [] },
     fairnessScore: { type: Number, default: 100, min: 0, max: 100 },
@@ -39,5 +40,6 @@ const groupSchema = new mongoose.Schema(
 
 groupSchema.index({ "members.user": 1 });
 groupSchema.index({ owner: 1, updatedAt: -1 });
+groupSchema.index({ directKey: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("Group", groupSchema);

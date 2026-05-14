@@ -17,8 +17,12 @@ const api = axios.create({
   withCredentials: true, // send httpOnly cookies on every request
 });
 
+export function getStoredToken() {
+  return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+}
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = getStoredToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -41,8 +45,9 @@ api.interceptors.response.use(
         refreshRequest = null;
         // Clear legacy refresh token from localStorage — cookie is the new home
         localStorage.removeItem(REFRESH_TOKEN_KEY);
-        localStorage.setItem(TOKEN_KEY, data.token);
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        const activeStorage = sessionStorage.getItem(TOKEN_KEY) ? sessionStorage : localStorage;
+        activeStorage.setItem(TOKEN_KEY, data.token);
+        activeStorage.setItem(USER_KEY, JSON.stringify(data.user));
         originalRequest.headers.Authorization = `Bearer ${data.token}`;
         return api(originalRequest);
       } catch {
@@ -51,6 +56,8 @@ api.interceptors.response.use(
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
     }
     return Promise.reject(error);
   },

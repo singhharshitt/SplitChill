@@ -1,7 +1,10 @@
+const mongoose = require("mongoose");
 const SmsLog = require("../models/SmsLog");
 const smsService = require("../services/sms.service");
 
 async function retryFailedSms() {
+  if (mongoose.connection.readyState !== 1) return;
+
   const due = await SmsLog.find({
     status: "failed",
     nextRetryAt: { $lte: new Date() },

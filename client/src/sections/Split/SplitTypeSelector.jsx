@@ -19,6 +19,7 @@ export default function SplitTypeSelector({ active, onSelect }) {
           const isActive = active === t.key;
           return (
             <button
+              type="button"
               key={t.key}
               onClick={() => onSelect(t.key)}
               className={`

@@ -29,7 +29,7 @@ async function getMessages(groupId, userId, options = {}) {
   const query = ChatMessage.find({ group: groupId })
     .populate("sender", "name email avatar");
 
-  const { items, hasMore, nextCursor, count } = await paginate(query, {
+  const { items, nextCursor } = await paginate(query, {
     limit: pageLimit,
     cursor,
     direction: 'older',
@@ -37,7 +37,7 @@ async function getMessages(groupId, userId, options = {}) {
   });
 
   return buildPaginationResponse(
-    items,
+    items.reverse(),
     nextCursor,
     `/groups/${groupId}/chat/messages`,
     pageLimit

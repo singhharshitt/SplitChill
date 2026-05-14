@@ -107,6 +107,7 @@ function initSocket(server, corsOrigin) {
     const userName = socket.user.name;
     socketUsers.set(socket.id, { userId, userName });
     resetSocketRateLimit(socket.id);
+    socket.join(`user:${userId}`);
 
     // ── Join group room ──
     socket.on("group:join", async (groupId, ack) => {
@@ -215,12 +216,18 @@ function emitToGroup(groupId, eventName, payload) {
   io.to(`group:${groupId}`).emit(eventName, payload);
 }
 
+function emitToUser(userId, eventName, payload) {
+  if (!io || !userId) return;
+  io.to(`user:${userId}`).emit(eventName, payload);
+}
+
 function getIo() {
   return io;
 }
 
 module.exports = {
   emitToGroup,
+  emitToUser,
   getIo,
   initSocket,
 };

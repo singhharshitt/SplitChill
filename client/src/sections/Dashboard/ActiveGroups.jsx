@@ -1,8 +1,11 @@
+import { useNavigate } from "react-router-dom";
+
 const cardBase =
   "bg-white rounded-[24px] p-6 md:p-8 shadow-[0_2px_24px_rgba(0,0,0,0.04)] border border-black/[0.04] transition-all duration-300 hover:shadow-[0_8px_40px_rgba(0,0,0,0.06)] hover:-translate-y-0.5";
 const serifHeading = "font-serif text-black tracking-tight";
 
 export default function ActiveGroups({ groups = [] }) {
+  const navigate = useNavigate();
   const statusStyles = {
     fair: "bg-emerald-50 text-emerald-700 border-emerald-100",
     unfair: "bg-red-50 text-red-600 border-red-100",
@@ -26,6 +29,7 @@ export default function ActiveGroups({ groups = [] }) {
           return (
             <div
               key={group.id}
+              onClick={() => navigate("/chat")}
               className="group p-5 rounded-2xl bg-[#FAFAF8] border border-black/[0.03] hover:bg-white hover:border-black/5 hover:shadow-md transition-all duration-300 cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">

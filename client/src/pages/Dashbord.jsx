@@ -1,4 +1,3 @@
-import ChatBot from "../context/Chatbot";
 import dasb from '../assets/dasb.png';
 import RecentActivity from "../sections/Dashboard/RecentActivity";
 import ActiveGroups from "../sections/Dashboard/ActiveGroups";
@@ -8,6 +7,8 @@ import BalanceOverview from "../sections/Dashboard/BalanceOverview";
 import AISuggestion from "../sections/Dashboard/AISuggestion";
 import Navbar from "../components/Navbar.jsx";
 import { useLiveData } from "../context/LiveDataContext.jsx";
+import GroupManagerModal from "../components/GroupManagerModal.jsx";
+import { useState } from "react";
 
 
 function DoodleStrip() {
@@ -25,6 +26,7 @@ function DoodleStrip() {
 
 export default function Dashboard() {
   const { groups, selectedGroup, latestExpenses, isLoading, error } = useLiveData();
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
   const suggestionGroup = groups.find((group) => group.suggestions?.suggestions?.length);
   const suggestion = suggestionGroup?.suggestions?.suggestions?.[0];
   const recentItems = latestExpenses.slice(0, 4).map((expense) => ({
@@ -46,7 +48,7 @@ export default function Dashboard() {
             <FairnessScore score={selectedGroup?.fairnessScore} insight={selectedGroup?.insights?.[0]}/>
           </div>
           <div className="lg:col-span-2">
-            <QuickActions/>
+            <QuickActions onCreateGroup={() => setGroupModalOpen(true)}/>
             <div className="mt-8">
               <ActiveGroups groups={groups}/>
             </div>
@@ -60,7 +62,7 @@ export default function Dashboard() {
       </main>
 
       <DoodleStrip />
-      <ChatBot/>
+      <GroupManagerModal open={groupModalOpen} mode="create" onClose={() => setGroupModalOpen(false)} />
     </div>
   );
 }

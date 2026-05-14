@@ -67,6 +67,32 @@ async function addMember(groupId, actorId, { userId }) {
   return getGroupById(group._id, actorId);
 }
 
+async function getOrCreateDirectChat(actor, { email }) {
+  const otherUser = await User.findOne({ email: String(email).toLowerCase() });
+  if (!otherUser) throw new AppError("No registered SplitChill user found for that email", 404);
+  if (String(otherUser._id) === String(actor._id)) throw new AppError("Use a different user's email to start a direct chat", 400);
+
+  const ids = [String(actor._id), String(otherUser._id)].sort();
+  const directKey = ids.join(":");
+  let group = await Group.findOne({ directKey });
+
+  if (!group) {
+    group = await Group.create({
+      name: `${actor.name} & ${otherUser.name}`,
+      type: "direct",
+      directKey,
+      owner: actor._id,
+      members: [
+        toMember(actor, "owner"),
+        toMember(otherUser, "member"),
+      ],
+      fairnessHistory: [{ score: 100, imbalance: 0, calculatedAt: new Date() }],
+    });
+  }
+
+  return getGroupById(group._id, actor._id);
+}
+
 function ensureMembership(group, userId) {
   const isMember = group.members.some((member) => String(member.user?._id || member.user) === String(userId));
   if (!isMember) throw new AppError("You do not have access to this group", 403);
@@ -76,6 +102,7 @@ module.exports = {
   addMember,
   createGroup,
   ensureMembership,
+  getOrCreateDirectChat,
   getGroupById,
   getGroups,
 };

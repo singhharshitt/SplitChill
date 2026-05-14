@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import Navbar from "../components/Navbar.jsx";
 
 function InputField({ label, type = "text", placeholder, value, onChange, autoComplete }) {
   return (
@@ -192,16 +193,16 @@ function AuthCard({ activeTab, setActiveTab }) {
             {isSubmitting ? "Signing in..." : "Split Fairly ->"}
           </button>
 
-          <div className="flex items-center gap-3 my-1">
+          {/* <div className="flex items-center gap-3 my-1">
             <div className="flex-1 h-px bg-black/7" />
             <span className="text-[11px] text-[#C4C4C0]">or</span>
             <div className="flex-1 h-px bg-black/7" />
-          </div>
+          </div> */}
 
-          <button type="button" className="w-full py-3 flex items-center justify-center gap-2 bg-white border border-black/10 rounded-2xl text-sm font-medium text-[#374151] hover:bg-[#FAFAF8] hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
+          {/* <button type="button" className="w-full py-3 flex items-center justify-center gap-2 bg-white border border-black/10 rounded-2xl text-sm font-medium text-[#374151] hover:bg-[#FAFAF8] hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
             <GoogleIcon />
             Continue with Google
-          </button>
+          </button> */}
         </form>
 
         <p className="text-center text-[11px] text-[#9CA3AF] mt-5">
@@ -259,16 +260,16 @@ function AuthCard({ activeTab, setActiveTab }) {
             {isSubmitting ? "Creating account..." : "Get Started ->"}
           </button>
 
-          <div className="flex items-center gap-3">
+          {/* <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-black/7" />
             <span className="text-[11px] text-[#C4C4C0]">or</span>
             <div className="flex-1 h-px bg-black/7" />
-          </div>
+          </div> */}
 
-          <button type="button" className="w-full py-3 flex items-center justify-center gap-2 bg-white border border-black/10 rounded-2xl text-sm font-medium text-[#374151] hover:bg-[#FAFAF8] hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
+          {/* <button type="button" className="w-full py-3 flex items-center justify-center gap-2 bg-white border border-black/10 rounded-2xl text-sm font-medium text-[#374151] hover:bg-[#FAFAF8] hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
             <GoogleIcon />
             Continue with Google
-          </button>
+          </button> */}
         </form>
 
         <p className="text-center text-[11px] text-[#9CA3AF] mt-5">
@@ -285,6 +286,32 @@ function AuthCard({ activeTab, setActiveTab }) {
       <p className="text-center text-[10px] text-[#C4C4C0] mt-4">
         Your data is encrypted · Payments are secure
       </p>
+      {/* {demoConfig?.enabled && (
+        <div className="mt-5 rounded-2xl border border-[#A3FDA7]/30 bg-[#A3FDA7]/8 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700 font-bold">Live demo</p>
+              <p className="text-xs text-gray-600 mt-1">Open two tabs or browser profiles and choose different demo users.</p>
+            </div>
+            <span className="h-2 w-2 rounded-full bg-[#A3FDA7]" />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(demoConfig.accounts || []).map((account) => (
+              <button
+                key={account.key}
+                type="button"
+                onClick={() => handleDemoLogin(account.key)}
+                disabled={Boolean(demoLoading)}
+                className="rounded-xl bg-white border border-black/5 px-3 py-2 text-left text-xs text-black hover:border-[#A3FDA7]/50 hover:shadow-sm transition-all disabled:opacity-50"
+              >
+                <span className="block font-medium">{demoLoading === account.key ? "Opening..." : account.name}</span>
+                <span className="block text-[10px] text-gray-400 truncate">{account.email}</span>
+              </button>
+            ))}
+          </div>
+          {demoError && <p className="mt-3 text-xs text-red-600">{demoError}</p>}
+        </div>
+      )} */}
     </div>
   );
 }
@@ -338,7 +365,8 @@ export default function AuthPage({ initialTab = "login" }) {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#F5F5F0" }}>
-      <div className="flex-1 flex items-center justify-center px-5 py-12 md:px-10 lg:px-16">
+      <Navbar />
+      <div className="flex-1 flex items-center justify-center px-5 pt-28 pb-12 md:px-10 lg:px-16">
         <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
           <AuthLeftContent />
           <div className="relative flex justify-center lg:justify-end">

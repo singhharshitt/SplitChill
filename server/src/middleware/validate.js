@@ -40,15 +40,25 @@ const schemas = {
     password: z.string().min(1).max(128),
   }),
   refresh: z.object({
-    refreshToken: z.string().min(20),
+    refreshToken: z.string().min(20).optional(),
   }),
   createGroup: z.object({
     name: z.string().trim().min(2).max(100),
-    type: z.enum(["trip", "rent", "event", "dining", "general"]).optional(),
+    type: z.enum(["trip", "rent", "event", "dining", "general", "direct"]).optional(),
     memberIds: z.array(objectId).max(50).optional().default([]),
   }),
   addMember: z.object({
     userId: objectId,
+  }),
+  directChat: z.object({
+    email: z.string().trim().email().toLowerCase(),
+  }),
+  aiChat: z.object({
+    message: z.string().trim().min(1).max(1000),
+    context: z.object({
+      page: z.string().trim().max(80).optional(),
+      groupId: objectId.optional(),
+    }).optional().default({}),
   }),
   expense: z.object({
     title: z.string().trim().min(2).max(140),
@@ -104,6 +114,19 @@ const schemas = {
   chatMessage: z.object({
     text: z.string().trim().min(1).max(1000),
     metadata: z.record(z.string(), z.any()).optional(),
+  }),
+  updateMe: z.object({
+    name: z.string().trim().min(2).max(80).optional(),
+    income: z.coerce.number().min(0).max(100000000).optional(),
+    preferences: z.object({
+      defaultSplit: z.enum(["equal", "ai", "custom"]).optional(),
+      paymentReminders: z.boolean().optional(),
+      fairnessAlerts: z.boolean().optional(),
+      groupActivity: z.boolean().optional(),
+      keepIncomePrivate: z.boolean().optional(),
+      shareInsights: z.boolean().optional(),
+      aiPersonalization: z.boolean().optional(),
+    }).optional(),
   }),
 };
 

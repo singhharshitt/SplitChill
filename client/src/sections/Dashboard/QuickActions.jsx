@@ -1,8 +1,8 @@
-export default function QuickActions() {
+export default function QuickActions({ onCreateGroup }) {
   const actions = [
-    { label: "Add Expense", primary: true },
-    { label: "Split Now", primary: false },
-    { label: "Settle Up", primary: false },
+    { label: "Add Expense", primary: true, href: "/split" },
+    { label: "Split Now", primary: false, href: "/split" },
+    { label: "New Group", primary: false, onClick: onCreateGroup },
   ];
 
   return (
@@ -10,6 +10,7 @@ export default function QuickActions() {
       {actions.map((a) => (
         <button
           key={a.label}
+          onClick={a.onClick || (() => { window.location.href = a.href; })}
           className={`
             group relative overflow-hidden rounded-[20px] px-6 py-5 text-left transition-all duration-300
             ${a.primary 

@@ -8,6 +8,11 @@ const scanReceipt = asyncHandler(async (req, res) => {
 
   try {
     const result = await ocrService.extractText(req.file.path);
+    if (!result.receiptDetected) {
+      throw new AppError("Unable to detect a valid bill or receipt.", 422, {
+        confidence: result.confidence,
+      });
+    }
     res.json({
       success: true,
       data: {

@@ -8,6 +8,10 @@ const logger = require("../utils/logger");
 
 const OCRSPACE_URL = "https://api.ocr.space/parse/image";
 
+function clamp(value, min = 0, max = 1) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function getOcrSpaceKey() {
   return process.env.OCRSPACE_API_KEY || process.env.OCRSPACE;
 }
@@ -36,24 +40,32 @@ async function extractText(filePath) {
     return result;
   } catch (err) {
     logger.warn("tesseract_failed", { error: err.message });
-    return { rawText: "", provider: "none", fields: {}, confidence: 0, error: "OCR extraction failed" };
+    return { rawText: "", provider: "none", fields: {}, confidence: 0, receiptDetected: false, detection: null, error: "OCR extraction failed" };
   }
 }
 
 async function ocrSpaceExtract(filePath, apiKey) {
-  const FormData = (await import("formdata-node")).FormData;
-  const { fileFromPath } = await import("formdata-node/file-from-path");
+  const fileBuffer = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).toLowerCase().replace(".", "") || "jpg";
+  const mimeMap = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", bmp: "image/bmp", tiff: "image/tiff", pdf: "application/pdf" };
+  const mime = mimeMap[ext] || "image/jpeg";
+  const base64 = `data:${mime};base64,${fileBuffer.toString("base64")}`;
 
-  const form = new FormData();
-  form.set("file", await fileFromPath(filePath));
-  form.set("apikey", apiKey);
-  form.set("language", "eng");
-  form.set("isOverlayRequired", "false");
-  form.set("detectOrientation", "true");
-  form.set("scale", "true");
-  form.set("OCREngine", "2");
+  const body = new URLSearchParams({
+    apikey: apiKey,
+    base64Image: base64,
+    language: "eng",
+    isOverlayRequired: "false",
+    detectOrientation: "true",
+    scale: "true",
+    OCREngine: "2",
+  });
 
-  const res = await fetch(OCRSPACE_URL, { method: "POST", body: form });
+  const res = await fetch(OCRSPACE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
   if (!res.ok) throw new Error(`OCRSpace HTTP ${res.status}`);
 
   const data = await res.json();
@@ -62,13 +74,16 @@ async function ocrSpaceExtract(filePath, apiKey) {
   }
 
   const rawText = (data.ParsedResults || []).map((r) => r.ParsedText).join("\n").trim();
-  const confidence = data.ParsedResults?.[0]?.TextOverlay?.confidence || 0;
+  const fields = parseReceiptFields(rawText);
+  const detection = analyzeReceiptDetection(rawText, fields, 0.9);
 
   return {
     rawText,
     provider: "ocrspace",
-    confidence: Math.round(confidence * 100) / 100,
-    fields: parseReceiptFields(rawText),
+    confidence: detection.confidence,
+    receiptDetected: detection.receiptDetected,
+    detection,
+    fields,
   };
 }
 
@@ -85,11 +100,15 @@ async function tesseractExtract(filePath) {
   });
 
   const rawText = (data.text || "").trim();
+  const fields = parseReceiptFields(rawText);
+  const detection = analyzeReceiptDetection(rawText, fields, Math.round((data.confidence || 0)) / 100);
   return {
     rawText,
     provider: "tesseract",
-    confidence: Math.round((data.confidence || 0)) / 100,
-    fields: parseReceiptFields(rawText),
+    confidence: detection.confidence,
+    receiptDetected: detection.receiptDetected,
+    detection,
+    fields,
   };
 }
 
@@ -101,27 +120,41 @@ function parseReceiptFields(text) {
   if (!text) return {};
 
   const fields = {};
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 
-  // Total — look for patterns like "Total: 1,234.56" or "TOTAL 123.45"
-  const totalMatch = text.match(/(?:total|grand\s*total|amount\s*due|net\s*amount)[:\s]*[₹$]?\s*([\d,]+\.?\d*)/i);
-  if (totalMatch) fields.total = parseFloat(totalMatch[1].replace(/,/g, ""));
+  const currencyPattern = /(?:₹|rs\.?|inr|usd|eur|gbp|\$|£|€)?\s*([\d,]+(?:\.\d{1,2})?)/i;
+  const isNoiseLine = (line) => /^(?:receipt|invoice|bill|thank you|order summary|tax invoice)$/i.test(line);
+
+  // Total — prefer the last explicit total-like line to avoid subtotal matches.
+  const totalLine = [...lines].reverse().find((line) => /\b(?:grand\s*total|amount\s*due|balance\s*due|net\s*amount|total\s*due|total)\b/i.test(line) && !/\bsubtotal\b/i.test(line));
+  if (totalLine) {
+    const totalMatch = totalLine.match(currencyPattern);
+    if (totalMatch) fields.total = parseFloat(totalMatch[1].replace(/,/g, ""));
+  }
+
+  // Taxes — common bill patterns.
+  const taxLine = lines.find((line) => /\b(?:tax|vat|gst|service\s*charge)\b/i.test(line));
+  if (taxLine) {
+    const taxMatch = taxLine.match(currencyPattern);
+    if (taxMatch) fields.tax = parseFloat(taxMatch[1].replace(/,/g, ""));
+  }
 
   // Date — look for common date formats
-  const dateMatch = text.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/);
+  const dateMatch = text.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}(?:\s+\d{1,2}:\d{2}(?:\s*[AP]M)?)?)/i);
   if (dateMatch) fields.date = dateMatch[1];
 
-  // Merchant — usually the first non-empty line
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  if (lines.length > 0) {
-    fields.merchant = lines[0].slice(0, 100);
+  // Merchant — prefer the first meaningful business-like line.
+  const merchantLine = lines.find((line) => /[A-Za-z]/.test(line) && !isNoiseLine(line) && !/\b(?:item|qty|price|tax|total|subtotal|discount|change)\b/i.test(line));
+  if (merchantLine) {
+    fields.merchant = merchantLine.slice(0, 100);
   }
 
   // Items — lines that look like "ItemName  123.45"
-  const itemPattern = /^(.{3,40})\s+([\d,]+\.?\d{0,2})\s*$/;
+  const itemPattern = /^(.{3,60}?)\s+([\d,]+(?:\.\d{1,2})?)\s*$/;
   const items = [];
   for (const line of lines) {
     const match = line.match(itemPattern);
-    if (match && !line.match(/total|tax|subtotal|discount/i)) {
+    if (match && !line.match(/total|tax|subtotal|discount|change|vat|gst/i)) {
       items.push({
         name: match[1].trim(),
         amount: parseFloat(match[2].replace(/,/g, "")),
@@ -131,6 +164,41 @@ function parseReceiptFields(text) {
   if (items.length) fields.items = items;
 
   return fields;
+}
+
+function analyzeReceiptDetection(rawText, fields, providerConfidence = 0) {
+  const text = String(rawText || "");
+  const normalized = text.toLowerCase();
+  const hasReceiptKeywords = /\b(receipt|invoice|bill|subtotal|grand total|amount due|balance due|vat|gst|service charge|order summary|thank you)\b/i.test(text);
+  const hasMoneySignals = /[₹$£€]\s*\d|\d[\d,]*\.\d{1,2}/.test(text);
+  const hasMerchant = Boolean(fields.merchant && !/^(?:receipt|invoice|bill)$/i.test(fields.merchant));
+  const hasTotal = Number.isFinite(fields.total) && fields.total > 0;
+  const hasTax = Number.isFinite(fields.tax) && fields.tax >= 0;
+  const hasItems = Array.isArray(fields.items) && fields.items.length > 0;
+  const hasDate = Boolean(fields.date);
+
+  const signalCount = [hasReceiptKeywords, hasMoneySignals, hasMerchant, hasTotal, hasTax, hasItems, hasDate].filter(Boolean).length;
+  const confidence = clamp((providerConfidence * 0.55) + ((signalCount / 7) * 0.45), 0, 1);
+  const receiptDetected = Boolean(
+    (hasTotal && (hasMerchant || hasItems || hasReceiptKeywords || hasTax || hasDate)) ||
+    (hasReceiptKeywords && (hasMoneySignals || hasItems || hasTotal)) ||
+    (confidence >= 0.55 && (hasTotal || hasItems || hasMerchant))
+  );
+
+  return {
+    confidence: Math.round(confidence * 100) / 100,
+    receiptDetected,
+    signals: {
+      hasReceiptKeywords,
+      hasMoneySignals,
+      hasMerchant,
+      hasTotal,
+      hasTax,
+      hasItems,
+      hasDate,
+    },
+    normalizedText: normalized,
+  };
 }
 
 /**

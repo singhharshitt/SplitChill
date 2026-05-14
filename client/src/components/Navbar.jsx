@@ -34,13 +34,14 @@ export default function Navbar() {
               <NavLink to="/analytics" className={navLinkClass}>Analytics</NavLink>
               <NavLink to="/transactions" className={navLinkClass}>Transactions</NavLink>
               <NavLink to="/chat" className={navLinkClass}>Chat</NavLink>
+              <NavLink to="/blog" className={navLinkClass}>Blog</NavLink>
               <NavLink to="/profile" className={navLinkClass}>Profile</NavLink>
             </>
           ) : (
             <>
               <span className="text-gray-500 hover:text-black cursor-pointer">Features</span>
               <span className="text-gray-500 hover:text-black cursor-pointer">How it Works</span>
-              <span className="text-gray-500 hover:text-black cursor-pointer">Pricing</span>
+              <NavLink to="/blog" className={navLinkClass}>Blog</NavLink>
             </>
           )}
 
@@ -100,6 +101,7 @@ export default function Navbar() {
                 <NavLink to="/analytics" onClick={closeMenu} className={navLinkClass}>Analytics</NavLink>
                 <NavLink to="/transactions" onClick={closeMenu} className={navLinkClass}>Transactions</NavLink>
                 <NavLink to="/chat" onClick={closeMenu} className={navLinkClass}>Chat</NavLink>
+                <NavLink to="/blog" onClick={closeMenu} className={navLinkClass}>Blog</NavLink>
                 <NavLink to="/profile" onClick={closeMenu} className={navLinkClass}>Profile</NavLink>
                 <button
                   type="button"
@@ -114,6 +116,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                <NavLink to="/blog" onClick={closeMenu} className={navLinkClass}>Blog</NavLink>
                 <Link to="/login" onClick={closeMenu} className="text-sm text-gray-500 hover:text-black transition">Login</Link>
                 <Link to="/signUp" onClick={closeMenu} className="w-fit px-5 py-2 rounded-full text-sm font-medium bg-[#A3FDA7] text-black shadow-sm">Get Started</Link>
               </>

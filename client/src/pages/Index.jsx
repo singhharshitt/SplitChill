@@ -1,6 +1,7 @@
 import hero from "../assets/hero.png";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
+import { Link } from "react-router-dom";
 import Behaviour from "../sections/Landing/Behaviour";
 import HowWorks from "../sections/Landing/HowWorks";
 import Metrices from "../sections/Landing/Metrices";
@@ -37,16 +38,16 @@ export default function Index() {
           {/* CTA BUTTONS */}
           <div className="flex flex-col sm:flex-row justify-center items-center gap-5 mt-10">
 
-            <button className="px-8 py-3.5 rounded-full bg-black text-white 
+            <Link to="/split" className="px-8 py-3.5 rounded-full bg-black text-white 
               hover:scale-105 transition-all duration-300 shadow-md">
               Split Fairly
-            </button>
+            </Link>
 
-            <button className="px-8 py-3.5 rounded-full border border-black/10 
+            <Link to="/blog/fairness" className="px-8 py-3.5 rounded-full border border-black/10 
               bg-white/70 backdrop-blur-md text-black 
               hover:shadow-md transition-all duration-300">
               See How It Works
-            </button>
+            </Link>
 
           </div>
 

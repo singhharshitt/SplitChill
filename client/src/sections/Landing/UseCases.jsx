@@ -1,3 +1,7 @@
+import { Link } from "react-router-dom";
+import groupsplit from "../../assets/groupsplit.png";
+import shopptense from "../../assets/shopptense.png";
+
 export default function UseCases() {
   return (
     <section className="py-20 px-5 bg-[#F5F5F0]">
@@ -87,9 +91,14 @@ export default function UseCases() {
               <p className="text-gray-600 text-sm leading-relaxed mb-6">
                 Balance isn't one moment—it evolves. SplitChill tracks history to keep things fair over time.
               </p>
-              <button className="w-fit px-6 py-3 bg-[#A8E6CF] hover:bg-[#8FD9B6] text-gray-900 text-sm font-medium rounded-full transition-colors duration-300 cursor-pointer">
+              <img
+                src={groupsplit}
+                alt=""
+                className="absolute bottom-4 right-4 w-24 h-24 object-contain opacity-85 pointer-events-none"
+              />
+              <Link to="/blog/groups" className="w-fit px-6 py-3 bg-[#A8E6CF] hover:bg-[#8FD9B6] text-gray-900 text-sm font-medium rounded-full transition-colors duration-300 cursor-pointer">
                 Learn More
-              </button>
+              </Link>
             </div>
             <div className="md:w-1/2 h-48 md:h-auto relative">
               <img 
@@ -103,6 +112,7 @@ export default function UseCases() {
           {/* Card 5: Dining & Outings — Bottom right */}
           <div className="group relative bg-[#2C1810] rounded-[2rem] overflow-hidden min-h-[320px] flex flex-col">
             <div className="flex-1 p-8 flex flex-col justify-end relative z-10">
+              <img src={shopptense} alt="" className="absolute top-5 right-5 w-20 h-20 object-contain opacity-85 pointer-events-none" />
               <p className="text-xs tracking-[0.2em] text-orange-300/60 uppercase mb-3 font-medium">
                 Dining
               </p>

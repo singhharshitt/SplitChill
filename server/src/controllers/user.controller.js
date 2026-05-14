@@ -11,7 +11,13 @@ const searchUsers = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { users } });
 });
 
+const updateMe = asyncHandler(async (req, res) => {
+  const user = await userService.updateMe(req.user._id, req.body);
+  res.json({ success: true, data: { user } });
+});
+
 module.exports = {
   getMe,
   searchUsers,
+  updateMe,
 };

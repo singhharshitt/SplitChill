@@ -21,7 +21,7 @@ function prependById(items, nextItem) {
 }
 
 export function LiveDataProvider({ children }) {
-  const { isLoggedIn, user } = useAuth();
+  const { applyUserUpdate, isLoggedIn, user } = useAuth();
   const currentUserId = userIdOf(user);
   const [rawGroups, setRawGroups] = useState([]);
   const [groupExtras, setGroupExtras] = useState({});
@@ -34,6 +34,7 @@ export function LiveDataProvider({ children }) {
   const [typingUsers, setTypingUsers] = useState({}); // { [groupId]: { [userId]: userName } }
   const [onlineUsers, setOnlineUsers] = useState({}); // { [groupId]: [userId, ...] }
   const typingTimers = useRef({}); // cleanup timers for stale typing state
+  const lastSeenByGroupRef = useRef({});
 
   // Ref to track group IDs for socket event binding (avoids re-render loops)
   const groupIdsRef = useRef([]);
@@ -56,15 +57,18 @@ export function LiveDataProvider({ children }) {
     ]);
 
     const group = unwrap(groupRes).group;
+    const messages = unwrap(messagesRes).items || [];
+    const newestMessage = messages.at(-1);
+    if (newestMessage?.createdAt) lastSeenByGroupRef.current[groupId] = newestMessage.createdAt;
     setRawGroups((existing) => prependById(existing, group));
     setGroupExtras((existing) => ({
       ...existing,
       [groupId]: {
-        expenses: unwrap(expensesRes).expenses || [],
+        expenses: unwrap(expensesRes).items || [],
         fairness: unwrap(fairnessRes).fairness,
         suggestions: unwrap(suggestionsRes).suggestions,
         analytics: unwrap(analyticsRes).analytics,
-        messages: unwrap(messagesRes).messages || [],
+        messages,
       },
     }));
   }, [isLoggedIn]);
@@ -107,6 +111,10 @@ export function LiveDataProvider({ children }) {
   // ── Keep groupIdsRef in sync ──
   useEffect(() => {
     groupIdsRef.current = rawGroups.map((g) => userIdOf(g)).filter(Boolean);
+    const socket = getSocket();
+    if (socket?.connected) {
+      groupIdsRef.current.forEach((groupId) => socket.emit("group:join", groupId));
+    }
   }, [rawGroups]);
 
   // ── Socket event binding (separate from rawGroups to avoid infinite loops) ──
@@ -115,7 +123,27 @@ export function LiveDataProvider({ children }) {
     const socket = connectSocket();
 
     const joinGroups = () => {
-      groupIdsRef.current.forEach((groupId) => socket.emit("group:join", groupId));
+      groupIdsRef.current.forEach((groupId) => {
+        socket.emit("group:join", groupId);
+        const since = lastSeenByGroupRef.current[groupId];
+        if (since) {
+          socket.emit("chat:messages-since", { groupId, since }, (response) => {
+            if (!response?.success || !response.messages?.length) return;
+            setGroupExtras((existing) => ({
+              ...existing,
+              [groupId]: {
+                ...(existing[groupId] || {}),
+                messages: response.messages.reduce(
+                  (items, message) => mergeById(items, message),
+                  existing[groupId]?.messages || [],
+                ),
+              },
+            }));
+            const newest = response.messages.at(-1);
+            if (newest?.createdAt) lastSeenByGroupRef.current[groupId] = newest.createdAt;
+          });
+        }
+      });
     };
 
     // Join on connect and reconnect
@@ -123,11 +151,6 @@ export function LiveDataProvider({ children }) {
     socket.on("connect", joinGroups);
 
     // ── Reconnect recovery ──
-    socket.on("connect", () => {
-      // Re-join all groups on reconnect
-      joinGroups();
-    });
-
     // ── Event handlers that use payload data directly instead of full refetch ──
     const handleExpenseAdded = (payload) => {
       if (!payload?.groupId) return;
@@ -160,6 +183,7 @@ export function LiveDataProvider({ children }) {
           messages: mergeById(existing[payload.groupId]?.messages || [], payload.message),
         },
       }));
+      if (payload.message?.createdAt) lastSeenByGroupRef.current[payload.groupId] = payload.message.createdAt;
       // Clear typing indicator for this sender
       const senderId = userIdOf(payload.message.sender);
       if (senderId) {
@@ -226,6 +250,11 @@ export function LiveDataProvider({ children }) {
       }));
     };
 
+    const handleUserUpdated = (payload) => {
+      if (payload?.user) applyUserUpdate(payload.user);
+      refreshGroups();
+    };
+
     socket.on("expense:added", handleExpenseAdded);
     socket.on("split:updated", handleExpenseAdded);
     socket.on("fairness:changed", handleFairnessChanged);
@@ -236,6 +265,7 @@ export function LiveDataProvider({ children }) {
     socket.on("chat:typing", handleTyping);
     socket.on("chat:stop-typing", handleStopTyping);
     socket.on("presence:update", handlePresenceUpdate);
+    socket.on("user:updated", handleUserUpdated);
 
     return () => {
       socket.off("connect", joinGroups);
@@ -249,11 +279,12 @@ export function LiveDataProvider({ children }) {
       socket.off("chat:typing", handleTyping);
       socket.off("chat:stop-typing", handleStopTyping);
       socket.off("presence:update", handlePresenceUpdate);
+      socket.off("user:updated", handleUserUpdated);
       // Clear all typing timers
       Object.values(typingTimers.current).forEach(clearTimeout);
       typingTimers.current = {};
     };
-  }, [isLoggedIn, currentUserId, refreshGroup]);
+  }, [applyUserUpdate, isLoggedIn, currentUserId, refreshGroup, refreshGroups]);
   // ☝️ Removed rawGroups from deps — groupIdsRef.current handles group ID tracking
 
   const groups = useMemo(() => rawGroups.map((group) => mapGroup(group, currentUserId, groupExtras[userIdOf(group)])), [currentUserId, groupExtras, rawGroups]);
@@ -261,6 +292,13 @@ export function LiveDataProvider({ children }) {
 
   const createGroup = async (payload) => {
     const data = unwrap(await api.post("/groups", payload));
+    await refreshGroup(userIdOf(data.group));
+    setSelectedGroupId(userIdOf(data.group));
+    return data.group;
+  };
+
+  const startDirectChatByEmail = async (email) => {
+    const data = unwrap(await api.post("/groups/direct", { email }));
     await refreshGroup(userIdOf(data.group));
     setSelectedGroupId(userIdOf(data.group));
     return data.group;
@@ -285,17 +323,31 @@ export function LiveDataProvider({ children }) {
     const socket = getSocket();
     if (socket?.connected) {
       return new Promise((resolve, reject) => {
+        let settled = false;
+        let fallbackTimer;
+        const resolveOnce = (message) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(fallbackTimer);
+          resolve(message);
+        };
+        const rejectOnce = (error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(fallbackTimer);
+          reject(error);
+        };
         socket.emit("chat:message", { groupId, text }, (response) => {
           if (response?.success) {
-            resolve(mapMessage(response.message, currentUserId));
+            resolveOnce(mapMessage(response.message, currentUserId));
           } else {
             // Fallback to HTTP
-            sendMessageHTTP(groupId, text).then(resolve).catch(reject);
+            sendMessageHTTP(groupId, text).then(resolveOnce).catch(rejectOnce);
           }
         });
         // Timeout fallback — if ack doesn't come in 3s, use HTTP
-        setTimeout(() => {
-          sendMessageHTTP(groupId, text).then(resolve).catch(reject);
+        fallbackTimer = setTimeout(() => {
+          sendMessageHTTP(groupId, text).then(resolveOnce).catch(rejectOnce);
         }, 3000);
       });
     }
@@ -363,6 +415,7 @@ export function LiveDataProvider({ children }) {
     isLoading,
     error,
     createGroup,
+    startDirectChatByEmail,
     addExpense,
     sendMessage,
     sendTyping,

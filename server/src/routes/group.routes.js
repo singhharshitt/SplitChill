@@ -14,6 +14,7 @@ const router = express.Router();
 
 router.get("/", groupController.getGroups);
 router.post("/", validate(schemas.createGroup), groupController.createGroup);
+router.post("/direct", validate(schemas.directChat), groupController.createDirectChat);
 router.get("/:id", groupController.getGroup);
 router.post("/:id/add-member", validate(schemas.addMember), groupController.addMember);
 

@@ -1,27 +1,47 @@
 import { useEffect, useRef, useState } from "react";
+import api, { getApiError, unwrap } from "../api/client.js";
+import { useAuth } from "./AuthContext.jsx";
 
 export default function ChatBot() {
+  const { isLoggedIn } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { from: "ai", text: "Hi! Ask me anything about your splits." },
+    { from: "ai", text: "Hi! Ask me about SplitChill features, fairness, receipts, chat, analytics, payments, or demo flow." },
   ]);
   const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  const send = () => {
-    if (!input.trim()) return;
-    setMessages((m) => [...m, { from: "user", text: input }]);
+  if (!isLoggedIn) return null;
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || isSending) return;
+    setMessages((current) => [...current, { from: "user", text }]);
     setInput("");
-    setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        { from: "ai", text: "I’m analyzing your group fairness… give me a sec." },
+    setIsSending(true);
+    try {
+      const data = unwrap(await api.post("/ai/chat", {
+        message: text,
+        context: { page: window.location.pathname },
+      }));
+      const reply = data.reply;
+      setMessages((current) => [
+        ...current,
+        { from: "ai", text: [reply.answer, ...(reply.tips || []).map((tip) => `Tip: ${tip}`)].filter(Boolean).join("\n\n") },
       ]);
-    }, 800);
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        { from: "ai", text: getApiError(error, "AI is unavailable right now. You can still create groups, scan receipts, split expenses, and use live chat.") },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -34,31 +54,37 @@ export default function ChatBot() {
           </div>
 
           <div ref={scrollRef} className="h-72 overflow-y-auto p-4 flex flex-col gap-3 bg-[#FAFAF8]">
-            {messages.map((m, i) => (
+            {messages.map((message, index) => (
               <div
-                key={i}
+                key={`${message.from}-${index}`}
                 className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                  m.from === "ai"
+                  message.from === "ai"
                     ? "bg-white text-black self-start border border-black/5 shadow-sm"
                     : "bg-black text-white self-end"
                 }`}
               >
-                {m.text}
+                <span className="whitespace-pre-line">{message.text}</span>
               </div>
             ))}
+            {isSending && (
+              <div className="max-w-[85%] px-4 py-2.5 rounded-2xl text-sm bg-white text-gray-500 self-start border border-black/5 shadow-sm">
+                Thinking...
+              </div>
+            )}
           </div>
 
           <div className="p-3 bg-white border-t border-black/5 flex gap-2">
             <input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send()}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && send()}
               placeholder="Ask anything..."
               className="flex-1 bg-gray-50 rounded-full px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-black/10 transition-all"
             />
             <button
               onClick={send}
-              className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center hover:scale-105 transition-transform"
+              disabled={isSending}
+              className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-40"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />

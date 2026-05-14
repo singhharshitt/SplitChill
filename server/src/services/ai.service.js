@@ -28,6 +28,11 @@ const MODELS = {
     fallback: "meta-llama/llama-4-scout-17b-16e-instruct",
     label: "Analytics Summary",
   },
+  "app-assistant": {
+    primary: "meta-llama/llama-3.3-70b-versatile",
+    fallback: "meta-llama/llama-4-scout-17b-16e-instruct",
+    label: "SplitChill App Assistant",
+  },
 };
 
 function getApiKey() {
@@ -258,11 +263,97 @@ ${(analytics.paymentVsUsage || []).map((m) => `- ${m.name}: paid ₹${m.paid}, s
   };
 }
 
+async function getAppAssistantReply({ message, user, groups, transactions, page }) {
+  const systemPrompt = `You are SplitChill AI, an in-app product and finance assistant.
+Answer only from SplitChill's actual capabilities: groups, direct chat by registered email, realtime group chat, typing/presence, expenses, receipt scanning, fairness-aware split recommendations, analytics, settlements, payments, profile settings, and demo troubleshooting.
+Do not claim unsupported features. If data is missing, say what the user can try next.
+Return JSON only:
+{
+  "answer": "<helpful answer in 2-5 short sentences>",
+  "tips": ["<optional short tip>", "<optional short tip>"]
+}`;
+
+  const compactGroups = (groups || []).slice(0, 5).map((group) => ({
+    name: group.name,
+    type: group.type,
+    fairnessScore: group.fairnessScore,
+    members: group.members?.length || 0,
+  }));
+  const compactTransactions = (transactions || []).slice(0, 5).map((transaction) => ({
+    amount: transaction.amount,
+    status: transaction.status,
+    group: transaction.group?.name || "Group",
+  }));
+
+  const userPrompt = JSON.stringify({
+    question: message,
+    page: page || "unknown",
+    user: { name: user?.name, email: user?.email },
+    appContext: {
+      groups: compactGroups,
+      transactions: compactTransactions,
+      features: [
+        "Create groups and direct chats with registered users by email",
+        "Send realtime chat messages with typing indicators and online presence",
+        "Scan receipts and use extracted totals in split creation",
+        "Create equal, custom, income-based, usage-based, and AI-recommended splits",
+        "Review fairness, analytics, predictions, settlements, and payments",
+      ],
+    },
+  });
+
+  const result = await callModel("app-assistant", systemPrompt, userPrompt, {
+    temperature: 0.2,
+    maxTokens: 600,
+    jsonMode: true,
+  });
+  const parsed = parseJsonResponse(result.text);
+  const fallback = buildAssistantFallback(message, compactGroups);
+
+  return {
+    answer: sanitizeAssistantText(parsed?.answer) || fallback.answer,
+    tips: Array.isArray(parsed?.tips) ? parsed.tips.slice(0, 3).map(sanitizeAssistantText).filter(Boolean) : fallback.tips,
+    model: result.model,
+    fallback: !parsed?.answer,
+  };
+}
+
+function sanitizeAssistantText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 900);
+}
+
+function buildAssistantFallback(message, groups) {
+  const lower = String(message || "").toLowerCase();
+  if (lower.includes("receipt") || lower.includes("scan")) {
+    return {
+      answer: "Receipt scanning works from the Split page. Choose a group, upload an image or PDF receipt, review the extracted merchant and total, then create the split so balances and chat context update.",
+      tips: ["If OCR misses the total, enter the amount manually before saving."],
+    };
+  }
+  if (lower.includes("chat") || lower.includes("email")) {
+    return {
+      answer: "Use Create Chat to enter another registered SplitChill user's email. SplitChill verifies the user, opens a direct conversation, and keeps messages live with presence and typing status.",
+      tips: ["For a demo, sign in with two accounts in different browsers."],
+    };
+  }
+  if (lower.includes("fair") || lower.includes("ai")) {
+    return {
+      answer: "SplitChill combines group balances, member contribution history, and split type to explain fairness. AI recommendations are suggestions; the saved split still goes through backend validation.",
+      tips: groups.length ? [`Your first loaded group is ${groups[0].name}.`] : "Create a group to see live fairness data.",
+    };
+  }
+  return {
+    answer: "SplitChill helps groups track shared expenses, scan receipts, chat in real time, choose fair splits, and settle balances. Ask about a page or workflow and I will keep the answer tied to what the app can actually do.",
+    tips: ["Try asking about direct chat, receipt scanning, fairness, analytics, or payments."],
+  };
+}
+
 module.exports = {
   callModel,
   getAiSplitRecommendation,
   getFairnessExplanation,
   getAiPredictions,
   getAnalyticsSummary,
+  getAppAssistantReply,
   parseJsonResponse,
 };

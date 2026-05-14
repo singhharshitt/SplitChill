@@ -4,6 +4,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Plus, Brain, Scale, HeartHandshake } from "lucide-react";
+import fairimage from "../../assets/fairimage.png";
 
 // ── Module-level variants (accessible everywhere) ──
 const lineVariants = {
@@ -115,6 +116,7 @@ export default function HowWorks() {
 
       {/* --- Header Content --- */}
       <div className="relative z-10 text-center max-w-3xl mb-20 space-y-5">
+        <img src={fairimage} alt="" className="mx-auto h-24 w-24 object-contain mb-2" />
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -224,4 +226,3 @@ export default function HowWorks() {
     </section>
   );
 }
-

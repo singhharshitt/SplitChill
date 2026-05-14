@@ -45,6 +45,7 @@ export function mapGroup(group, currentUserId, extras = {}) {
     id: userIdOf(group),
     name: group.name,
     avatar: initials(group.name),
+    type: group.type || "general",
     members,
     expenses,
     fairnessScore: money(extras.fairness?.score ?? group.fairnessScore ?? 100),
@@ -78,6 +79,7 @@ export function mapExpense(expense) {
 }
 
 export function mapMessage(message, currentUserId) {
+  if (message?.id && message?.type) return message;
   const sender = message.sender || {};
   return {
     id: userIdOf(message),

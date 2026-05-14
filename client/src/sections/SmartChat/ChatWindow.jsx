@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AIBubble from "../../components/AIAssistantBubble.jsx";
 import ExpenseBubble from "../../components/ExpenseMessageCard.jsx";
 import SmartActionBubble from "../../components/SmartActionBubble.jsx";
@@ -7,6 +7,8 @@ import TextBubble from "../../components/TextBubble.jsx";
 import { serif } from "../../lib/uiTokens.js";
 import usePagination from "../../hooks/usePagination.js";
 import { useLiveData } from "../../context/LiveDataContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { mapMessage, userIdOf } from "../../lib/liveDataTransforms.js";
 
 function TypingIndicator({ users }) {
   const names = Object.values(users || {});
@@ -31,6 +33,7 @@ function TypingIndicator({ users }) {
 export default function ChatWindow({ chat, onSendMessage }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
+  const { user } = useAuth();
   const { sendTyping, sendStopTyping, typingUsers, onlineUsers } = useLiveData();
   const typingTimeout = useRef(null);
 
@@ -52,12 +55,12 @@ export default function ChatWindow({ chat, onSendMessage }) {
 
   useEffect(() => {
     if (!chat?.messages?.length) return;
-    messagesPagination.prependItems(chat.messages);
-  }, [chat?.messages, messagesPagination.prependItems]);
+    messagesPagination.appendItems(chat.messages);
+  }, [chat?.messages, messagesPagination.appendItems]);
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
 
-  const handleInputChange = useCallback((e) => {
+  const handleInputChange = (e) => {
     setInput(e.target.value);
     if (chat?.id) {
       sendTyping(chat.id);
@@ -66,7 +69,7 @@ export default function ChatWindow({ chat, onSendMessage }) {
         sendStopTyping(chat.id);
       }, 2000);
     }
-  }, [chat?.id, sendTyping, sendStopTyping]);
+  };
 
   const handleSend = async () => {
     const text = input.trim();
@@ -142,7 +145,8 @@ export default function ChatWindow({ chat, onSendMessage }) {
           </svg>
           <span className="text-[10px] text-gray-400 tracking-wide">Secured connection</span>
         </div>
-        {messagesPagination.items.map((msg) => {
+        {messagesPagination.items.map((item) => {
+          const msg = mapMessage(item, userIdOf(user));
           switch (msg.type) {
             case "text": return <TextBubble key={msg.id} message={msg} />;
             case "expense": return <ExpenseBubble key={msg.id} message={msg} />;
