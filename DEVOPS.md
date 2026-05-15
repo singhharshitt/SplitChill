@@ -106,7 +106,7 @@ Recommended local Jenkins run with Docker Compose:
 docker compose -f docker-compose.jenkins.yml up --build -d
 ```
 
-The Compose stack includes `docker:29-dind` with named Docker data/socket volumes. Jenkins talks to DinD through a private Unix socket volume, avoiding both host socket access and unauthenticated TCP `2375`.
+The Compose stack includes a tiny custom DinD image built from `docker/jenkins-dind/Dockerfile`. It creates a `jenkins` group with GID `1000` and starts `dockerd` with `--group=jenkins`, so `/docker-socket/docker.sock` is writable by the Jenkins user. Jenkins talks to DinD through a private Unix socket volume, avoiding both host socket access and unauthenticated TCP `2375`.
 
 If you previously started Jenkins with `docker run jenkins/jenkins:lts-jdk17`, recreate it with the Compose stack above. That vanilla Jenkins image does not include `docker`, `docker buildx`, or `docker compose`, so this pipeline will fail in preflight with `ERROR: Docker CLI is required on the Jenkins agent`.
 
@@ -115,6 +115,7 @@ To migrate from the old `docker run --name jenkins ... -v jenkins_home:/var/jenk
 ```bash
 docker stop jenkins
 docker rm jenkins
+docker volume rm splitchill_jenkins_docker_socket 2>/dev/null || true
 docker compose -f docker-compose.jenkins.yml up --build -d
 ```
 
@@ -211,6 +212,7 @@ Security rules:
 docker stop jenkins || true
 docker rm jenkins || true
 docker compose -f docker-compose.jenkins.yml down
+docker volume rm splitchill_jenkins_docker_socket 2>/dev/null || true
 docker compose -f docker-compose.jenkins.yml up --build -d
 ```
 
@@ -220,6 +222,11 @@ docker compose -f docker-compose.jenkins.yml up --build -d
 - Symptom: `Cannot connect to the Docker daemon`.
 - Fix: use `docker-compose.jenkins.yml`, which starts a private `docker:29-dind` daemon and sets `DOCKER_HOST=unix:///docker-socket/docker.sock`.
 - For production, use a dedicated isolated Jenkins build agent with its own Docker Engine.
+
+### Docker socket permission denied
+- Symptom: `permission denied while trying to connect to the Docker daemon socket at unix:///docker-socket/docker.sock`.
+- Cause: the DinD daemon socket was created with a group that the `jenkins` user could not access.
+- Fix in this repo: the DinD image creates a `jenkins` group with GID `1000`, and Compose starts `dockerd` with `--group=jenkins`.
 
 ### Jenkinsfile syntax validation
 - Jenkins validates the declarative syntax before running the pipeline.

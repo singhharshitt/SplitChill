@@ -152,6 +152,29 @@ command -v docker >/dev/null || {
   exit 127
 }
 
+echo "Jenkins runtime user: $(id)"
+echo "DOCKER_HOST=${DOCKER_HOST:-default}"
+
+case "${DOCKER_HOST:-}" in
+  unix://*)
+    docker_socket="${DOCKER_HOST#unix://}"
+    if [ ! -S "$docker_socket" ]; then
+      echo "ERROR: Docker socket does not exist or is not a socket: $docker_socket"
+      ls -la "$(dirname "$docker_socket")" || true
+      exit 1
+    fi
+
+    echo "Docker socket permissions:"
+    ls -l "$docker_socket"
+
+    if [ ! -w "$docker_socket" ]; then
+      echo "ERROR: Jenkins cannot write to Docker socket: $docker_socket"
+      echo "Fix docker-compose.jenkins.yml so DinD starts with --group=jenkins and recreate the Jenkins stack."
+      exit 1
+    fi
+    ;;
+esac
+
 docker version
 docker info >/dev/null
 
