@@ -231,7 +231,7 @@ fi
           retry(2) {
             runNodeInDocker(
               'client',
-              'npm ci --no-audit --no-fund && npm run lint && npm run build'
+              'apt-get update -qq && apt-get install -y -qq git && npm ci --no-audit --no-fund && npm run lint && npm run build'
             )
           }
         }
@@ -247,7 +247,7 @@ fi
           retry(2) {
             runNodeInDocker(
               'server',
-              'npm ci --no-audit --no-fund && node --check index.js && find src -name "*.js" -exec node --check {} \\; && npm test'
+              'apt-get update -qq && apt-get install -y -qq git && npm ci --no-audit --no-fund && node --check index.js && find src -name "*.js" -exec node --check {} \\; && npm test'
             )
           }
         }
