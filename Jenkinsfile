@@ -57,8 +57,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 container_id=\$(docker create \\
-  --dns 8.8.8.8 \\
-  --dns 8.8.4.4 \\
+  --network host \\
   -e CI=true \\
   -e HOME=/tmp/node-home \\
   -e npm_config_cache=/tmp/npm-cache \\
@@ -120,15 +119,12 @@ pipeline {
         timeout(time: 5, unit: 'MINUTES')
       }
       steps {
-        // Make Git more tolerant of slow networks
         sh '''
 #!/bin/sh
 set -eu
 
-# Disable the low‑speed abort (0 = never abort because of slow speed)
 git config --global http.lowSpeedLimit 0
 git config --global http.lowSpeedTime 999999
-# Force HTTP/1.1 and longer keep-alive
 git config --global http.version HTTP/1.1
 git config --global http.postBuffer 524288000
 '''
