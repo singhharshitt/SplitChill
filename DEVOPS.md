@@ -100,6 +100,41 @@ docker push my-registry/splitchill/client:%IMAGE_TAG%
 - Global environment variable:
   - `DOCKER_REGISTRY` (example: `ghcr.io/your-org`)
 
+#### Jenkins runtime requirements (important)
+
+- The included `Jenkinsfile` runs Node-based steps inside a Node Docker image using `docker.image(...).inside {}` so the Jenkins executor does not need Node/npm preinstalled. For that to work the Jenkins process must be able to launch Docker containers (one of the following):
+
+  1. A Jenkins agent (node) with Docker Engine installed and available to the Jenkins user.
+  2. A Jenkins controller/container with access to the host Docker socket (`/var/run/docker.sock`) so it can start sibling containers. See the recommended local run below.
+
+- Recommended local Jenkins run command (binds host Docker socket):
+
+```bash
+# Start Jenkins with Docker socket mounted so pipelines can spawn containers
+docker run -d --name jenkins \
+  --restart=unless-stopped \
+  -p 8080:8080 -p 50000:50000 \
+  -v jenkins_home:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  jenkins/jenkins:lts-jdk17
+```
+
+- Required Jenkins plugins / optional helpful plugins:
+  - Docker Pipeline (enables `docker.image(...).inside`).
+  - Pipeline (Workflow) and Pipeline: Groovy support.
+  - Credentials Plugin (store registry, webhook secrets).
+  - (Optional) Workspace Cleanup — not required because this repo uses `deleteDir()` in the pipeline cleanup.
+
+- Credentials to create in Jenkins (names referenced by the pipeline):
+  - `docker-registry-credentials` — Docker registry username/password, or token.
+  - `render-deploy-hook-url` — a secret text or webhook URL used to trigger deploys.
+
+- If your Jenkins environment cannot run Docker containers from pipeline steps:
+  - Option A: install Node/npm on the Jenkins agent(s) and configure a Node environment (or use the NodeJS Tool Installer plugin). Then modify the pipeline to run `npm` directly on the agent instead of inside a container.
+  - Option B: provide a dedicated build agent (VM or container) that has Docker and Node preinstalled and register it with Jenkins.
+
+The `Jenkinsfile` intentionally avoids relying on the Workspace Cleanup plugin by using `deleteDir()` which is provided by the Jenkins pipeline core.
+
 ### PR vs main behavior
 - Pull requests and non-main branches run validation only.
 - `main` branch additionally pushes images (if registry configured) and triggers deploy.

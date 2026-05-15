@@ -31,8 +31,12 @@ pipeline {
         stage('Client Lint') {
           steps {
             dir('client') {
-              sh 'npm ci'
-              sh 'npm run lint'
+              script {
+                docker.image('node:20-alpine').inside {
+                  sh 'npm ci'
+                  sh 'npm run lint'
+                }
+              }
             }
           }
         }
@@ -40,9 +44,13 @@ pipeline {
         stage('Server Static Checks') {
           steps {
             dir('server') {
-              sh 'npm ci'
-              sh 'node --check index.js'
-              sh "find src -name '*.js' -print0 | xargs -0 -n1 node --check"
+              script {
+                docker.image('node:20-alpine').inside {
+                  sh 'npm ci'
+                  sh 'node --check index.js'
+                  sh "find src -name '*.js' -print0 | xargs -0 -n1 node --check"
+                }
+              }
             }
           }
         }
@@ -52,7 +60,11 @@ pipeline {
     stage('Test') {
       steps {
         dir('server') {
-          sh 'npm test'
+          script {
+            docker.image('node:20-alpine').inside {
+              sh 'npm test'
+            }
+          }
         }
       }
     }
@@ -60,7 +72,11 @@ pipeline {
     stage('Build') {
       steps {
         dir('client') {
-          sh 'npm run build'
+          script {
+            docker.image('node:20-alpine').inside {
+              sh 'npm run build'
+            }
+          }
         }
       }
     }
@@ -110,7 +126,9 @@ pipeline {
 
   post {
     always {
-      cleanWs(deleteDirs: true, disableDeferredWipeout: true)
+      // `cleanWs` may not be available if Workspace Cleanup plugin is missing.
+      // Use `deleteDir()` which is provided by pipeline core to remove workspace.
+      deleteDir()
     }
     failure {
       echo 'Pipeline failed before deployment completed. Existing production release remains unchanged.'
