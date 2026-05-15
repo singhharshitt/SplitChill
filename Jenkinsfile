@@ -94,10 +94,7 @@ pipeline {
     APP_NAME = 'splitchill'
     SERVER_IMAGE_NAME = 'splitchill/server'
     CLIENT_IMAGE_NAME = 'splitchill/client'
-    REGISTRY_CREDS = 'docker-registry-credentials'
-    RENDER_DEPLOY_HOOK_CREDS = 'render-deploy-hook-url'
-    DOCKER_CLIENT_TIMEOUT = '300'
-    COMPOSE_HTTP_TIMEOUT = '300'
+
   }
 
   stages {
