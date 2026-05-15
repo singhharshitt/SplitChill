@@ -194,6 +194,11 @@ Security rules:
 - Fix in this repo: the Jenkinsfile disables Declarative's automatic checkout, sets conservative Git HTTP transport options, and retries the explicit checkout three times.
 - If this still happens before the pipeline starts, Jenkins is failing while fetching the Jenkinsfile itself. Rerun the build, then check Jenkins host/container DNS, proxy, firewall, and outbound HTTPS access to `github.com`.
 
+### Node container permission error
+- Symptom: `ERROR: Unable to open log: Permission denied` followed by exit code `99` in `node:20-alpine` CI stages.
+- Cause: trying to install Alpine packages with `apk add` while the container is intentionally running as the non-root Jenkins user.
+- Fix in this repo: Node validation stages do not run `apk`; they only run project npm commands as the Jenkins UID to avoid root-owned workspace files.
+
 ### Docker CLI missing in Jenkins
 - Symptom: `docker: not found`.
 - Fix: recreate Jenkins with this repo's Compose stack:
