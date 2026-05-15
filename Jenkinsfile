@@ -3,7 +3,7 @@ String shellQuote(String value) {
 }
 
 void runNodeInDocker(String workspaceDir, String command) {
-  String nodeImage = 'node:20'   // Full Debian image includes git
+  String nodeImage = 'node:20'
   String cacheVolume = "splitchill-npm-cache-${workspaceDir.replaceAll('[^a-zA-Z0-9_.-]', '-')}"
   String isolatedCommand = "rm -rf /workspace/node_modules && ${command}"
 
@@ -120,17 +120,28 @@ pipeline {
         timeout(time: 5, unit: 'MINUTES')
       }
       steps {
+        // Make Git more tolerant of slow networks
         sh '''
 #!/bin/sh
 set -eu
 
-git config --global http.lowSpeedLimit 1000
-git config --global http.lowSpeedTime 60
+# Disable the low‑speed abort (0 = never abort because of slow speed)
+git config --global http.lowSpeedLimit 0
+git config --global http.lowSpeedTime 999999
+# Force HTTP/1.1 and longer keep-alive
 git config --global http.version HTTP/1.1
+git config --global http.postBuffer 524288000
 '''
 
-        retry(3) {
-          checkout scm
+        retry(5) {
+          checkout([
+            $class: 'GitSCM',
+            branches: [[name: '*/main']],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [[$class: 'CloneOption', noTags: true, shallow: true, depth: 1]],
+            submoduleCfg: [],
+            userRemoteConfigs: [[url: 'https://github.com/singhharshitt/SplitChill']]
+          ])
         }
 
         script {
