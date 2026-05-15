@@ -6,6 +6,7 @@ ENV CI=true
 
 FROM base AS deps
 COPY package*.json ./
+RUN apk add --no-cache git
 RUN npm ci
 
 FROM deps AS development
@@ -16,6 +17,7 @@ CMD ["npm", "run", "dev"]
 
 FROM base AS prod-deps
 COPY package*.json ./
+RUN apk add --no-cache git
 RUN npm ci --omit=dev && npm cache clean --force
 
 FROM base AS production

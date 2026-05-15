@@ -6,6 +6,7 @@ ENV CI=true
 
 FROM base AS deps
 COPY package*.json ./
+RUN apk add --no-cache git
 RUN npm ci
 
 FROM deps AS development
