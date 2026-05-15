@@ -282,12 +282,12 @@ fi
 #!/bin/sh
 set -eu
 
-docker build \
+docker build --network host \
   --target production \
   -t "splitchill/server:ci-${IMAGE_TAG}" \
   server
 
-docker build \
+docker build --network host \
   --target production \
   -t "splitchill/client:ci-${IMAGE_TAG}" \
   client
