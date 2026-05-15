@@ -3,6 +3,8 @@ String shellQuote(String value) {
 }
 
 void runNodeInDocker(String workspaceDir, String command) {
+  String isolatedCommand = "cp -a /source/. /workspace && rm -rf /workspace/node_modules && ${command}"
+
   sh(
     label: "node:20-alpine ${workspaceDir}",
     script: """#!/bin/sh
@@ -20,28 +22,38 @@ fi
 
 if [ -n "\${DOCKER_HOST:-}" ]; then
   docker run --rm \\
-    -v "\$PWD/${workspaceDir}:/workspace" \\
-    --user "\$(id -u):\$(id -g)" \\
+    -v "\$PWD/${workspaceDir}:/source:ro" \\
     -e CI=true \\
-    -e HOME=/tmp \\
+    -e HOME=/tmp/node-home \\
+    -e npm_config_cache=/tmp/npm-cache \\
+    -e npm_config_fetch_retries=5 \\
+    -e npm_config_fetch_retry_mintimeout=20000 \\
+    -e npm_config_fetch_retry_maxtimeout=120000 \\
     -w /workspace \\
-    node:20-alpine sh -lc ${shellQuote(command)}
+    node:20-alpine sh -lc ${shellQuote(isolatedCommand)}
 elif [ -f /.dockerenv ]; then
   docker run --rm \\
     --volumes-from "\$HOSTNAME" \\
-    --user "\$(id -u):\$(id -g)" \\
+    -e SOURCE_DIR="\$PWD/${workspaceDir}" \\
     -e CI=true \\
-    -e HOME=/tmp \\
-    -w "\$PWD/${workspaceDir}" \\
-    node:20-alpine sh -lc ${shellQuote(command)}
+    -e HOME=/tmp/node-home \\
+    -e npm_config_cache=/tmp/npm-cache \\
+    -e npm_config_fetch_retries=5 \\
+    -e npm_config_fetch_retry_mintimeout=20000 \\
+    -e npm_config_fetch_retry_maxtimeout=120000 \\
+    -w /workspace \\
+    node:20-alpine sh -lc ${shellQuote('cp -a "$SOURCE_DIR/." /workspace && rm -rf /workspace/node_modules && ' + command)}
 else
   docker run --rm \\
-    -v "\$PWD/${workspaceDir}:/workspace" \\
-    --user "\$(id -u):\$(id -g)" \\
+    -v "\$PWD/${workspaceDir}:/source:ro" \\
     -e CI=true \\
-    -e HOME=/tmp \\
+    -e HOME=/tmp/node-home \\
+    -e npm_config_cache=/tmp/npm-cache \\
+    -e npm_config_fetch_retries=5 \\
+    -e npm_config_fetch_retry_mintimeout=20000 \\
+    -e npm_config_fetch_retry_maxtimeout=120000 \\
     -w /workspace \\
-    node:20-alpine sh -lc ${shellQuote(command)}
+    node:20-alpine sh -lc ${shellQuote(isolatedCommand)}
 fi
 """
   )

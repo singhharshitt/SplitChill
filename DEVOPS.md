@@ -199,6 +199,11 @@ Security rules:
 - Cause: trying to install Alpine packages with `apk add` while the container is intentionally running as the non-root Jenkins user.
 - Fix in this repo: Node validation stages do not run `apk`; they only run project npm commands as the Jenkins UID to avoid root-owned workspace files.
 
+### npm exits before installing dev tools
+- Symptom: `npm error Exit handler never called!` followed by `sh: eslint: not found`.
+- Cause: npm install state became unstable while installing directly into the live Jenkins workspace from parallel containers.
+- Fix in this repo: Node CI stages copy the client/server source into each container's private filesystem, use an isolated npm cache, remove stale `node_modules`, and run `npm ci` there.
+
 ### Docker CLI missing in Jenkins
 - Symptom: `docker: not found`.
 - Fix: recreate Jenkins with this repo's Compose stack:
