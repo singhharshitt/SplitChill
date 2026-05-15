@@ -108,7 +108,14 @@ set -eu
 
 echo "Checking Jenkins runtime tools..."
 command -v git >/dev/null || { echo "ERROR: git is required on the Jenkins agent."; exit 127; }
-command -v docker >/dev/null || { echo "ERROR: Docker CLI is required on the Jenkins agent."; exit 127; }
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: Docker CLI is required on the Jenkins agent."
+  echo "Your log shows this Jenkins controller is still running the vanilla jenkins/jenkins:lts-jdk17 image."
+  echo "Recreate Jenkins with this repo's Docker-enabled image:"
+  echo "  docker compose -f docker-compose.jenkins.yml down"
+  echo "  docker compose -f docker-compose.jenkins.yml up --build -d"
+  exit 127
+fi
 
 docker version
 docker info >/dev/null

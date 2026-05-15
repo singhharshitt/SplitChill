@@ -109,6 +109,18 @@ docker compose -f docker-compose.jenkins.yml up --build -d
 
 The Compose stack includes `docker:29-dind` with a named Docker data volume. It avoids direct host socket control while still allowing Docker image builds inside CI.
 
+If you previously started Jenkins with `docker run jenkins/jenkins:lts-jdk17`, recreate it with the Compose stack above. That vanilla Jenkins image does not include `docker`, `docker buildx`, or `docker compose`, so this pipeline will fail in preflight with `ERROR: Docker CLI is required on the Jenkins agent`.
+
+To migrate from the old `docker run --name jenkins ... -v jenkins_home:/var/jenkins_home ...` setup while keeping your Jenkins jobs/config:
+
+```bash
+docker stop jenkins
+docker rm jenkins
+docker compose -f docker-compose.jenkins.yml up --build -d
+```
+
+`docker-compose.jenkins.yml` intentionally reuses the existing named volume `jenkins_home`.
+
 Required Jenkins plugins:
 - Pipeline (Workflow) and Pipeline: Groovy support
 - Git Plugin
@@ -178,7 +190,16 @@ Security rules:
 
 ### Docker CLI missing in Jenkins
 - Symptom: `docker: not found`.
-- Fix: run Jenkins with `docker/jenkins/Dockerfile` or install Docker CLI and Docker Compose on the agent.
+- Fix: recreate Jenkins with this repo's Compose stack:
+
+```bash
+docker stop jenkins || true
+docker rm jenkins || true
+docker compose -f docker-compose.jenkins.yml down
+docker compose -f docker-compose.jenkins.yml up --build -d
+```
+
+- The image built from `docker/jenkins/Dockerfile` installs Docker CLI, Buildx, Docker Compose, and the Jenkins plugins listed in `docker/jenkins/plugins.txt`.
 
 ### Docker daemon unavailable
 - Symptom: `Cannot connect to the Docker daemon`.

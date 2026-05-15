@@ -18,18 +18,29 @@ services:
       - jenkins_home:/var/jenkins_home
     depends_on:
       docker:
-        condition: service_started
+        condition: service_healthy
 
   docker:
     image: docker:29-dind
     privileged: true
     restart: unless-stopped
+    command:
+      - --host=tcp://0.0.0.0:2375
+      - --host=unix:///var/run/docker.sock
     environment:
       DOCKER_TLS_CERTDIR: ""
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
     volumes:
       - jenkins_home:/var/jenkins_home
       - docker_data:/var/lib/docker
 
 volumes:
   jenkins_home:
+    name: jenkins_home
   docker_data:
+    name: splitchill_jenkins_docker_data
