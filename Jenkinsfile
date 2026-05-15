@@ -3,7 +3,7 @@ String shellQuote(String value) {
 }
 
 void runNodeInDocker(String workspaceDir, String command) {
-  String nodeImage = 'node:20-bookworm-slim'
+  String nodeImage = 'node:20'   // Full Debian image includes git
   String cacheVolume = "splitchill-npm-cache-${workspaceDir.replaceAll('[^a-zA-Z0-9_.-]', '-')}"
   String isolatedCommand = "rm -rf /workspace/node_modules && ${command}"
 
@@ -219,7 +219,7 @@ fi
           retry(2) {
             runNodeInDocker(
               'client',
-              'apt-get update -qq && apt-get install -y -qq git && npm ci --no-audit --no-fund && npm run lint && npm run build'
+              'npm ci --no-audit --no-fund && npm run lint && npm run build'
             )
           }
         }
@@ -235,7 +235,7 @@ fi
           retry(2) {
             runNodeInDocker(
               'server',
-              'apt-get update -qq && apt-get install -y -qq git && npm ci --no-audit --no-fund && node --check index.js && find src -name "*.js" -exec node --check {} \\; && npm test'
+              'npm ci --no-audit --no-fund && node --check index.js && find src -name "*.js" -exec node --check {} \\; && npm test'
             )
           }
         }
