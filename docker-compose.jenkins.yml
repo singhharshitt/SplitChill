@@ -12,10 +12,11 @@ services:
       - "${JENKINS_AGENT_PORT:-50000}:50000"
     environment:
       JAVA_OPTS: ${JENKINS_JAVA_OPTS:--Djenkins.install.runSetupWizard=true}
-      DOCKER_HOST: tcp://docker:2375
+      DOCKER_HOST: unix:///docker-socket/docker.sock
       DOCKER_TLS_CERTDIR: ""
     volumes:
       - jenkins_home:/var/jenkins_home
+      - docker_socket:/docker-socket
     depends_on:
       docker:
         condition: service_healthy
@@ -25,9 +26,9 @@ services:
     privileged: true
     restart: unless-stopped
     command:
-      - --host=tcp://0.0.0.0:2375
-      - --host=unix:///var/run/docker.sock
+      - --host=unix:///docker-socket/docker.sock
     environment:
+      DOCKER_HOST: unix:///docker-socket/docker.sock
       DOCKER_TLS_CERTDIR: ""
     healthcheck:
       test: ["CMD", "docker", "info"]
@@ -37,10 +38,13 @@ services:
       start_period: 10s
     volumes:
       - jenkins_home:/var/jenkins_home
+      - docker_socket:/docker-socket
       - docker_data:/var/lib/docker
 
 volumes:
   jenkins_home:
     name: jenkins_home
+  docker_socket:
+    name: splitchill_jenkins_docker_socket
   docker_data:
     name: splitchill_jenkins_docker_data

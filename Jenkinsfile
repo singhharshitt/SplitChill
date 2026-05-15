@@ -3,10 +3,12 @@ String shellQuote(String value) {
 }
 
 void runNodeInDocker(String workspaceDir, String command) {
-  String isolatedCommand = "cp -a /source/. /workspace && rm -rf /workspace/node_modules && ${command}"
+  String nodeImage = 'node:20-bookworm-slim'
+  String cacheVolume = "splitchill-npm-cache-${workspaceDir.replaceAll('[^a-zA-Z0-9_.-]', '-')}"
+  String isolatedCommand = "rm -rf /workspace/node_modules && ${command}"
 
   sh(
-    label: "node:20-alpine ${workspaceDir}",
+    label: "node:20 ${workspaceDir}",
     script: """#!/bin/sh
 set -eu
 
@@ -20,41 +22,39 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ -n "\${DOCKER_HOST:-}" ]; then
-  docker run --rm \\
-    -v "\$PWD/${workspaceDir}:/source:ro" \\
-    -e CI=true \\
-    -e HOME=/tmp/node-home \\
-    -e npm_config_cache=/tmp/npm-cache \\
-    -e npm_config_fetch_retries=5 \\
-    -e npm_config_fetch_retry_mintimeout=20000 \\
-    -e npm_config_fetch_retry_maxtimeout=120000 \\
-    -w /workspace \\
-    node:20-alpine sh -lc ${shellQuote(isolatedCommand)}
-elif [ -f /.dockerenv ]; then
-  docker run --rm \\
-    --volumes-from "\$HOSTNAME" \\
-    -e SOURCE_DIR="\$PWD/${workspaceDir}" \\
-    -e CI=true \\
-    -e HOME=/tmp/node-home \\
-    -e npm_config_cache=/tmp/npm-cache \\
-    -e npm_config_fetch_retries=5 \\
-    -e npm_config_fetch_retry_mintimeout=20000 \\
-    -e npm_config_fetch_retry_maxtimeout=120000 \\
-    -w /workspace \\
-    node:20-alpine sh -lc ${shellQuote('cp -a "$SOURCE_DIR/." /workspace && rm -rf /workspace/node_modules && ' + command)}
-else
-  docker run --rm \\
-    -v "\$PWD/${workspaceDir}:/source:ro" \\
-    -e CI=true \\
-    -e HOME=/tmp/node-home \\
-    -e npm_config_cache=/tmp/npm-cache \\
-    -e npm_config_fetch_retries=5 \\
-    -e npm_config_fetch_retry_mintimeout=20000 \\
-    -e npm_config_fetch_retry_maxtimeout=120000 \\
-    -w /workspace \\
-    node:20-alpine sh -lc ${shellQuote(isolatedCommand)}
-fi
+source_dir="\$PWD/${workspaceDir}"
+test -d "\$source_dir" || {
+  echo "ERROR: expected directory not found: \$source_dir"
+  exit 1
+}
+
+docker image inspect ${nodeImage} >/dev/null 2>&1 || docker pull ${nodeImage}
+
+container_id=""
+cleanup() {
+  if [ -n "\$container_id" ]; then
+    docker rm -f "\$container_id" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
+container_id=\$(docker create \\
+  -e CI=true \\
+  -e HOME=/tmp/node-home \\
+  -e npm_config_cache=/tmp/npm-cache \\
+  -e npm_config_audit=false \\
+  -e npm_config_fund=false \\
+  -e npm_config_fetch_retries=5 \\
+  -e npm_config_fetch_retry_mintimeout=20000 \\
+  -e npm_config_fetch_retry_maxtimeout=120000 \\
+  -v ${cacheVolume}:/tmp/npm-cache \\
+  -w /workspace \\
+  ${nodeImage} sh -lc ${shellQuote(isolatedCommand)})
+
+docker cp "\$source_dir/." "\$container_id:/workspace"
+docker start -a "\$container_id"
+exit_code=\$(docker inspect "\$container_id" --format '{{.State.ExitCode}}')
+exit "\$exit_code"
 """
   )
 }
@@ -167,53 +167,28 @@ fi
       }
     }
 
-    stage('Install, Lint, and Static Checks') {
-
-      parallel {
-
-        stage('Client Lint') {
-          steps {
-            script {
-              runNodeInDocker(
-                'client',
-                'npm ci && npm run lint'
-              )
-            }
-          }
-        }
-
-        stage('Server Static Checks') {
-          steps {
-            script {
-              runNodeInDocker(
-                'server',
-                'npm ci && node --check index.js'
-              )
-            }
-          }
-        }
-
-      }
-    }
-
-    stage('Tests') {
+    stage('Client Verify') {
       steps {
         script {
-          runNodeInDocker(
-            'server',
-            'npm ci && npm test'
-          )
+          retry(2) {
+            runNodeInDocker(
+              'client',
+              'npm ci --no-audit --no-fund && npm run lint && npm run build'
+            )
+          }
         }
       }
     }
 
-    stage('Frontend Build') {
+    stage('Server Verify') {
       steps {
         script {
-          runNodeInDocker(
-            'client',
-            'npm ci && npm run build'
-          )
+          retry(2) {
+            runNodeInDocker(
+              'server',
+              'npm ci --no-audit --no-fund && node --check index.js && find src -name "*.js" -exec node --check {} \\; && npm test'
+            )
+          }
         }
       }
     }

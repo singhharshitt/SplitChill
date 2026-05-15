@@ -76,13 +76,12 @@ docker push my-registry/splitchill/client:$IMAGE_TAG
 - Stages:
   1. Checkout and derive image tag from branch + commit SHA
   2. Jenkins runtime preflight (`git`, Docker CLI, Docker daemon, Docker Compose)
-  3. Client lint and server static checks in `node:20-alpine`
-  4. Backend tests
-  5. Frontend production build
-  6. Docker Compose validation
-  7. Docker image build (`server` and `client` production targets)
-  8. Optional image push
-  9. Optional Render deploy hook
+  3. Client verify in `node:20-bookworm-slim` (`npm ci`, lint, build)
+  4. Server verify in `node:20-bookworm-slim` (`npm ci`, syntax checks, tests)
+  5. Docker Compose validation
+  6. Docker image build (`server` and `client` production targets)
+  7. Optional image push
+  8. Optional Render deploy hook
 
 ### Required Jenkins credentials and env
 - Credentials:
@@ -95,7 +94,7 @@ docker push my-registry/splitchill/client:$IMAGE_TAG
 
 The Jenkinsfile intentionally does not use Jenkins' `docker.image(...).inside {}` DSL. This avoids `groovy.lang.MissingPropertyException: No such property: docker` when the Docker Pipeline plugin is missing or disabled.
 
-Node-based steps run through Docker CLI using `node:20-alpine`, so the Jenkins executor does not need Node/npm preinstalled. Jenkins does need Docker CLI, Docker daemon access, and Docker Compose.
+Node-based steps run through Docker CLI using `node:20-bookworm-slim`, so the Jenkins executor does not need Node/npm preinstalled. Jenkins does need Docker CLI, Docker daemon access, and Docker Compose.
 
 Supported Jenkins runtimes:
 - Recommended: the included Jenkins + Docker-in-Docker Compose stack. Jenkins talks to a dedicated Docker daemon over the private Compose network and does not mount the host Docker socket.
@@ -107,7 +106,7 @@ Recommended local Jenkins run with Docker Compose:
 docker compose -f docker-compose.jenkins.yml up --build -d
 ```
 
-The Compose stack includes `docker:29-dind` with a named Docker data volume. It avoids direct host socket control while still allowing Docker image builds inside CI.
+The Compose stack includes `docker:29-dind` with named Docker data/socket volumes. Jenkins talks to DinD through a private Unix socket volume, avoiding both host socket access and unauthenticated TCP `2375`.
 
 If you previously started Jenkins with `docker run jenkins/jenkins:lts-jdk17`, recreate it with the Compose stack above. That vanilla Jenkins image does not include `docker`, `docker buildx`, or `docker compose`, so this pipeline will fail in preflight with `ERROR: Docker CLI is required on the Jenkins agent`.
 
@@ -195,14 +194,14 @@ Security rules:
 - If this still happens before the pipeline starts, Jenkins is failing while fetching the Jenkinsfile itself. Rerun the build, then check Jenkins host/container DNS, proxy, firewall, and outbound HTTPS access to `github.com`.
 
 ### Node container permission error
-- Symptom: `ERROR: Unable to open log: Permission denied` followed by exit code `99` in `node:20-alpine` CI stages.
+- Symptom: `ERROR: Unable to open log: Permission denied` followed by exit code `99` in Node CI stages.
 - Cause: trying to install Alpine packages with `apk add` while the container is intentionally running as the non-root Jenkins user.
 - Fix in this repo: Node validation stages do not run `apk`; they only run project npm commands as the Jenkins UID to avoid root-owned workspace files.
 
 ### npm exits before installing dev tools
 - Symptom: `npm error Exit handler never called!` followed by `sh: eslint: not found`.
 - Cause: npm install state became unstable while installing directly into the live Jenkins workspace from parallel containers.
-- Fix in this repo: Node CI stages copy the client/server source into each container's private filesystem, use an isolated npm cache, remove stale `node_modules`, and run `npm ci` there.
+- Fix in this repo: Node CI stages use `docker create` + `docker cp` to copy the client/server source into each container's private filesystem, use an isolated npm cache volume, remove stale `node_modules`, and run `npm ci` there.
 
 ### Docker CLI missing in Jenkins
 - Symptom: `docker: not found`.
@@ -219,7 +218,7 @@ docker compose -f docker-compose.jenkins.yml up --build -d
 
 ### Docker daemon unavailable
 - Symptom: `Cannot connect to the Docker daemon`.
-- Fix: use `docker-compose.jenkins.yml`, which starts a private `docker:29-dind` daemon and sets `DOCKER_HOST=tcp://docker:2375`.
+- Fix: use `docker-compose.jenkins.yml`, which starts a private `docker:29-dind` daemon and sets `DOCKER_HOST=unix:///docker-socket/docker.sock`.
 - For production, use a dedicated isolated Jenkins build agent with its own Docker Engine.
 
 ### Jenkinsfile syntax validation
