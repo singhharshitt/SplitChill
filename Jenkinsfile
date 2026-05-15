@@ -176,7 +176,7 @@ fi
             script {
               runNodeInDocker(
                 'client',
-                'npm ci && npm run lint'
+                'apk add --no-cache git && npm ci && npm run lint'
               )
             }
           }
@@ -187,7 +187,7 @@ fi
             script {
               runNodeInDocker(
                 'server',
-                'npm ci && node --check index.js'
+                'apk add --no-cache git && npm ci && node --check index.js'
               )
             }
           }
