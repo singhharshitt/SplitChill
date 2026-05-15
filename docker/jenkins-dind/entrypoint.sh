@@ -7,4 +7,6 @@ rm -f /docker-socket/docker.sock
 exec dockerd \
   --host=unix:///docker-socket/docker.sock \
   --group=jenkins \
+  --storage-driver=overlay2 \
+  --tls=false \
   "$@"

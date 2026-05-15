@@ -52,7 +52,7 @@ container_id=\$(docker create \\
   ${nodeImage} sh -lc ${shellQuote(isolatedCommand)})
 
 docker cp "\$source_dir/." "\$container_id:/workspace"
-docker start -a "\$container_id"
+timeout 600 docker start -a "\$container_id"
 exit_code=\$(docker inspect "\$container_id" --format '{{.State.ExitCode}}')
 exit "\$exit_code"
 """
@@ -67,6 +67,7 @@ pipeline {
     skipDefaultCheckout(true)
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '30'))
+    timeout(time: 30, unit: 'MINUTES')
   }
 
   parameters {
@@ -102,6 +103,9 @@ pipeline {
   stages {
 
     stage('Checkout') {
+      options {
+        timeout(time: 5, unit: 'MINUTES')
+      }
       steps {
         sh '''
 #!/bin/sh
@@ -138,6 +142,9 @@ git config --global http.version HTTP/1.1
     }
 
     stage('Jenkins Runtime Preflight') {
+      options {
+        timeout(time: 2, unit: 'MINUTES')
+      }
       steps {
 
         sh '''
@@ -193,6 +200,9 @@ fi
     }
 
     stage('Client Verify') {
+      options {
+        timeout(time: 15, unit: 'MINUTES')
+      }
       steps {
         script {
           retry(2) {
@@ -206,6 +216,9 @@ fi
     }
 
     stage('Server Verify') {
+      options {
+        timeout(time: 10, unit: 'MINUTES')
+      }
       steps {
         script {
           retry(2) {
@@ -219,6 +232,9 @@ fi
     }
 
     stage('Docker Compose Validation') {
+      options {
+        timeout(time: 2, unit: 'MINUTES')
+      }
       steps {
 
         sh '''
@@ -237,6 +253,9 @@ fi
     }
 
     stage('Docker Image Build') {
+      options {
+        timeout(time: 15, unit: 'MINUTES')
+      }
       steps {
 
         sh '''
@@ -257,6 +276,9 @@ docker build \
     }
 
     stage('Push Images') {
+      options {
+        timeout(time: 10, unit: 'MINUTES')
+      }
 
       when {
         allOf {
@@ -309,6 +331,9 @@ docker logout "$EFFECTIVE_DOCKER_REGISTRY" || true
     }
 
     stage('Deploy Render Hook') {
+      options {
+        timeout(time: 2, unit: 'MINUTES')
+      }
 
       when {
         allOf {
@@ -344,11 +369,10 @@ curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
 
     always {
       script {
-        node {
-          sh '''
+        sh '''
 #!/bin/sh
 
-if command -v docker >/dev/null 2>&1; then
+if [ -n "${IMAGE_TAG:-}" ] && command -v docker >/dev/null 2>&1; then
   docker image rm \
     "splitchill/server:ci-${IMAGE_TAG}" \
     "splitchill/client:ci-${IMAGE_TAG}" \
@@ -356,8 +380,7 @@ if command -v docker >/dev/null 2>&1; then
 fi
 '''
 
-          deleteDir()
-        }
+        cleanWs(notFailBuild: true)
       }
     }
 

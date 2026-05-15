@@ -34,6 +34,7 @@ services:
     image: splitchill/docker-dind:29-jenkins-socket
     privileged: true
     restart: unless-stopped
+    command: ["--storage-driver=overlay2"]
     environment:
       DOCKER_HOST: unix:///docker-socket/docker.sock
       DOCKER_TLS_CERTDIR: ""

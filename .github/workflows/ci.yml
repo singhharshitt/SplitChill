@@ -33,4 +33,4 @@ jobs:
       - name: Syntax check server
         if: matrix.app == 'server'
         working-directory: server
-        run: node --check index.js && node --check src/app.js
+        run: node --check index.js && node --check src/app.js && npm test

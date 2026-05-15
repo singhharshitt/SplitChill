@@ -183,6 +183,11 @@ Security rules:
 
 ## 8) Troubleshooting
 
+### Pipeline deadlocks in Stage View
+- Symptom: Stage View gets stuck permanently, holding an executor.
+- Cause: Using `node {}` inside a `post` block when `disableConcurrentBuilds()` is active can deadlock Jenkins if only one executor is available.
+- Fix in this repo: The Jenkinsfile `post` block runs in the original `agent any` context, uses `cleanWs()`, and all stages have explicit timeouts.
+
 ### Docker DSL error in Jenkins
 - Symptom: `groovy.lang.MissingPropertyException: No such property: docker`.
 - Fix: use the current Jenkinsfile, which uses Docker CLI instead of Docker Pipeline DSL.

@@ -155,7 +155,7 @@ function AuthCard({ activeTab, setActiveTab }) {
   }
 
   return (
-    <div className="bg-white rounded-[28px] p-8 border border-black/[0.06] shadow-sm hover:shadow-md transition-shadow duration-400 w-full max-w-[400px]">
+    <div className="bg-white rounded-[28px] p-8 border border-black/6 shadow-sm hover:shadow-md transition-shadow duration-400 w-full max-w-100">
       <AuthTabs activeTab={activeTab} onChange={setActiveTab} />
 
       <AnimatedPanel visible={isLogin}>
@@ -326,7 +326,7 @@ function AuthLeftContent() {
       </div>
 
       <h1
-        className="text-[48px] lg:text-[56px] xl:text-[64px] leading-[1.07] tracking-[-0.025em] text-black mb-6 max-w-[480px]"
+        className="text-[48px] lg:text-[56px] xl:text-[64px] leading-[1.07] tracking-tight text-black mb-6 max-w-120"
         style={{ fontFamily: "'Georgia', 'Playfair Display', serif", fontWeight: 500 }}
       >
         Start splitting...
@@ -334,7 +334,7 @@ function AuthLeftContent() {
         the <em className="italic">fair</em> way.
       </h1>
 
-      <p className="text-[15px] text-[#6B7280] leading-[1.7] max-w-[340px] mb-8">
+      <p className="text-[15px] text-[#6B7280] leading-[1.7] max-w-85 mb-8">
         No awkward math. No uncomfortable conversations.
         <br />
         Just balance...the way it should be.
@@ -351,7 +351,7 @@ function AuthLeftContent() {
           { label: "No hidden fees" },
         ].map(({ label }) => (
           <div key={label} className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#A3FDA7] flex-shrink-0" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[#A3FDA7] shrink-0" />
             <span className="text-[11px] text-[#9CA3AF] font-medium">{label}</span>
           </div>
         ))}
