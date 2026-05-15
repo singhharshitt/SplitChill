@@ -1,0 +1,35 @@
+name: splitchill-jenkins
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: docker/jenkins/Dockerfile
+    image: splitchill/jenkins:lts-jdk17-docker-cli
+    restart: unless-stopped
+    ports:
+      - "${JENKINS_PORT:-8080}:8080"
+      - "${JENKINS_AGENT_PORT:-50000}:50000"
+    environment:
+      JAVA_OPTS: ${JENKINS_JAVA_OPTS:--Djenkins.install.runSetupWizard=true}
+      DOCKER_HOST: tcp://docker:2375
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    depends_on:
+      docker:
+        condition: service_started
+
+  docker:
+    image: docker:29-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - docker_data:/var/lib/docker
+
+volumes:
+  jenkins_home:
+  docker_data:

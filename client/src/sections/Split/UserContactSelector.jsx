@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import api, { getApiError } from "../../api/client.js";
 
 const serif = "font-serif text-black tracking-tight";
@@ -7,16 +7,14 @@ export default function UserContactSelector({ people, onAdd, amountEntered }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedUsers, setSelectedUsers] = useState(new Set(people.map((p) => p.id)));
   const [error, setError] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const alreadyAdded = new Set(people.map((p) => p.id));
+  const alreadyAdded = useMemo(() => new Set(people.map((p) => p.id)), [people]);
+  const canSearch = Boolean(searchQuery.trim() && amountEntered);
 
   useEffect(() => {
-    if (!searchQuery.trim() || !amountEntered) {
-      setSearchResults([]);
-      setShowDropdown(false);
+    if (!canSearch) {
       return;
     }
 
@@ -38,7 +36,7 @@ export default function UserContactSelector({ people, onAdd, amountEntered }) {
 
     const debounce = setTimeout(searchUsers, 300);
     return () => clearTimeout(debounce);
-  }, [searchQuery, amountEntered, alreadyAdded]);
+  }, [searchQuery, canSearch, alreadyAdded]);
 
   const handleAddUser = (user) => {
     onAdd({
@@ -74,7 +72,13 @@ export default function UserContactSelector({ people, onAdd, amountEntered }) {
           type="text"
           placeholder="Search by email, UPI ID, or phone number"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            if (!e.target.value.trim()) {
+              setSearchResults([]);
+              setShowDropdown(false);
+            }
+          }}
           onFocus={() => setShowDropdown(true)}
           className="w-full px-4 py-3 rounded-2xl border border-black/10 bg-white text-sm outline-none focus:border-[#A3FDA7] focus:ring-1 focus:ring-[#A3FDA7]/30 transition-all"
         />
@@ -84,7 +88,7 @@ export default function UserContactSelector({ people, onAdd, amountEntered }) {
           </div>
         )}
 
-        {showDropdown && searchResults.length > 0 && (
+        {showDropdown && canSearch && searchResults.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-black/10 rounded-2xl shadow-lg z-50 max-h-72 overflow-y-auto">
             {searchResults.map((user) => (
               <button
@@ -103,7 +107,7 @@ export default function UserContactSelector({ people, onAdd, amountEntered }) {
           </div>
         )}
 
-        {showDropdown && searchQuery.trim() && searchResults.length === 0 && !isSearching && (
+        {showDropdown && canSearch && searchResults.length === 0 && !isSearching && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-black/10 rounded-2xl shadow-lg z-50 px-4 py-3">
             <p className="text-sm text-gray-500">No users found. Invite them to join SplitChill first.</p>
           </div>

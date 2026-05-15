@@ -94,7 +94,7 @@ export function usePagination(fetchFn, options = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchFn, initialLimit, onError]);
+  }, [fetchPage, initialLimit, onError]);
 
   /**
    * Load next page
@@ -136,7 +136,7 @@ export function usePagination(fetchFn, options = {}) {
     } finally {
       setIsFetching(false);
     }
-  }, [fetchFn, initialLimit, hasMore, nextCursor, isFetching, isLoading, onError]);
+  }, [fetchPage, initialLimit, hasMore, nextCursor, isFetching, isLoading, onError]);
 
   /**
    * Prepend items (for real-time updates from WebSocket)

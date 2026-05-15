@@ -42,23 +42,32 @@ export default function ChatWindow({ chat, onSendMessage }) {
     chat ? `/groups/${chat.id}/chat/messages` : null,
     { limit: 30 }
   );
+  const {
+    appendItems,
+    clearItems,
+    hasMore,
+    isFetching,
+    items,
+    loadInitial,
+    loadMore,
+  } = messagesPagination;
 
   useEffect(() => {
     if (!chat?.id) {
-      messagesPagination.clearItems();
+      clearItems();
       return;
     }
 
-    messagesPagination.clearItems();
-    messagesPagination.loadInitial(true);
-  }, [chat?.id]);
+    clearItems();
+    loadInitial(true);
+  }, [chat?.id, clearItems, loadInitial]);
 
   useEffect(() => {
     if (!chat?.messages?.length) return;
-    messagesPagination.appendItems(chat.messages);
-  }, [chat?.messages, messagesPagination.appendItems]);
+    appendItems(chat.messages);
+  }, [chat?.messages, appendItems]);
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [items]);
 
   const handleInputChange = (e) => {
     setInput(e.target.value);
@@ -79,7 +88,7 @@ export default function ChatWindow({ chat, onSendMessage }) {
     clearTimeout(typingTimeout.current);
     const newMessage = await onSendMessage?.(text);
     if (newMessage) {
-      messagesPagination.appendItems([newMessage]);
+      appendItems([newMessage]);
     }
   };
 
@@ -128,14 +137,14 @@ export default function ChatWindow({ chat, onSendMessage }) {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 bg-[#F5F5F0]">
-        {messagesPagination.items.length > 0 && messagesPagination.hasMore && (
+        {items.length > 0 && hasMore && (
           <div className="flex justify-center py-4">
             <button
-              onClick={() => messagesPagination.loadMore()}
-              disabled={messagesPagination.isFetching}
+              onClick={() => loadMore()}
+              disabled={isFetching}
               className="px-4 py-2 text-xs font-medium rounded-full bg-black/[0.05] hover:bg-black/[0.08] disabled:opacity-50 transition-colors"
             >
-              {messagesPagination.isFetching ? "Loading..." : "Load Earlier Messages"}
+              {isFetching ? "Loading..." : "Load Earlier Messages"}
             </button>
           </div>
         )}
@@ -145,7 +154,7 @@ export default function ChatWindow({ chat, onSendMessage }) {
           </svg>
           <span className="text-[10px] text-gray-400 tracking-wide">Secured connection</span>
         </div>
-        {messagesPagination.items.map((item) => {
+        {items.map((item) => {
           const msg = mapMessage(item, userIdOf(user));
           switch (msg.type) {
             case "text": return <TextBubble key={msg.id} message={msg} />;

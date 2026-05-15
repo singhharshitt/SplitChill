@@ -47,38 +47,53 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
     group ? `/groups/${group.id}/chat/messages` : null,
     { limit: 30 }
   );
+  const {
+    appendItems,
+    clearItems: clearMessages,
+    items: messages,
+    loadInitial: loadInitialMessages,
+  } = messagesPagination;
   
   const expensesPagination = usePagination(
     group ? `/groups/${group.id}/expenses` : null,
     { limit: 25 }
   );
+  const {
+    clearItems: clearExpenses,
+    hasMore: hasMoreExpenses,
+    isFetching: isFetchingExpenses,
+    items: expenses,
+    loadInitial: loadInitialExpenses,
+    loadMore: loadMoreExpenses,
+    prependItems,
+  } = expensesPagination;
 
   useEffect(() => {
     if (!group?.id) {
-      messagesPagination.clearItems();
-      expensesPagination.clearItems();
+      clearMessages();
+      clearExpenses();
       return;
     }
 
-    messagesPagination.clearItems();
-    expensesPagination.clearItems();
-    messagesPagination.loadInitial(true);
-    expensesPagination.loadInitial(true);
-  }, [group?.id]);
+    clearMessages();
+    clearExpenses();
+    loadInitialMessages(true);
+    loadInitialExpenses(true);
+  }, [group?.id, clearMessages, clearExpenses, loadInitialMessages, loadInitialExpenses]);
 
   useEffect(() => {
     if (group?.messages?.length) {
-      messagesPagination.appendItems(group.messages);
+      appendItems(group.messages);
     }
-  }, [group?.messages, messagesPagination.appendItems]);
+  }, [group?.messages, appendItems]);
 
   useEffect(() => {
     if (group?.expenses?.length) {
-      expensesPagination.prependItems(group.expenses);
+      prependItems(group.expenses);
     }
-  }, [group?.expenses, expensesPagination.prependItems]);
+  }, [group?.expenses, prependItems]);
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messagesPagination.items]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
 
   const handleInputChange = (e) => {
     setMessageInput(e.target.value);
@@ -99,7 +114,7 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
     clearTimeout(typingTimeout.current);
     const newMessage = await onSendMessage?.(text);
     if (newMessage) {
-      messagesPagination.appendItems([newMessage]);
+      appendItems([newMessage]);
     }
   };
 
@@ -182,15 +197,15 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
               <button onClick={() => window.location.assign("/transactions")} className="text-xs text-gray-400 hover:text-black transition-colors">View all</button>
             </div>
             <div className="flex flex-col gap-2">
-              {expensesPagination.items.map((e, idx) => <ExpenseRow key={e._id || e.id || `expense-${idx}`} expense={e} />)}
-              {expensesPagination.items.length === 0 && <p className="text-sm text-gray-400">No expenses yet.</p>}
-              {expensesPagination.hasMore && (
+              {expenses.map((e, idx) => <ExpenseRow key={e._id || e.id || `expense-${idx}`} expense={e} />)}
+              {expenses.length === 0 && <p className="text-sm text-gray-400">No expenses yet.</p>}
+              {hasMoreExpenses && (
                 <button
-                  onClick={() => expensesPagination.loadMore()}
-                  disabled={expensesPagination.isFetching}
+                  onClick={() => loadMoreExpenses()}
+                  disabled={isFetchingExpenses}
                   className="mt-3 text-xs font-medium text-gray-600 hover:text-black disabled:opacity-50 transition-colors"
                 >
-                  {expensesPagination.isFetching ? "Loading..." : "Load More Expenses"}
+                  {isFetchingExpenses ? "Loading..." : "Load More Expenses"}
                 </button>
               )}
             </div>
@@ -215,7 +230,7 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
                 </svg>
                 <span className="text-[10px] text-gray-400 tracking-wide">Secured connection</span>
               </div>
-              {messagesPagination.items.map((item, idx) => {
+              {messages.map((item, idx) => {
                 const msg = mapMessage(item, userIdOf(user));
                 const msgKey = msg.id || `msg-${idx}`;
                 switch (msg.type) {

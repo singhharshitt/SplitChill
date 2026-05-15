@@ -15,9 +15,10 @@ This guide describes the production-grade setup for Docker, Docker Compose, Jenk
 - Targets:
   - `development`: Vite dev server
   - `production`: multi-stage build + Nginx runtime
-- Nginx config: `client/nginx.conf` (includes `/healthz` endpoint and SPA rewrite)
+- Nginx config: `client/nginx.conf` includes `/healthz` and SPA fallback.
 
 ### Ignore files
+- Root `.dockerignore`: keeps Jenkins image builds from sending local dependencies/secrets.
 - `server/.dockerignore`
 - `client/.dockerignore`
 
@@ -25,16 +26,8 @@ This guide describes the production-grade setup for Docker, Docker Compose, Jenk
 
 ### Local development stack
 - File: `docker-compose.yml`
-- Services:
-  - `mongo` (replica set enabled)
-  - `redis`
-  - `server` (development target, bind mount + nodemon)
-  - `client` (development target, bind mount + Vite)
-- Health checks:
-  - Mongo replica set health
-  - Redis ping
-  - Server readiness (`/api/health/ready`)
-  - Client availability
+- Services: MongoDB replica set, Redis, Express server, Vite client.
+- Health checks cover Mongo, Redis, server readiness, and client availability.
 
 Run locally:
 
@@ -50,8 +43,6 @@ docker compose up --build
 - File: `docker-compose.prod.yml`
 - Uses production targets for server/client images.
 
-Run production profile locally:
-
 ```bash
 cp .env.example .env
 # Ensure JWT_SECRET and JWT_REFRESH_SECRET are set in .env
@@ -64,19 +55,19 @@ docker compose -f docker-compose.prod.yml up --build -d
 Use immutable tags for rollback-friendly releases.
 
 ```bash
-set IMAGE_TAG=v1.0.0
+export IMAGE_TAG=v1.0.0
 
-docker build --target production -t splitchill/server:%IMAGE_TAG% server
-docker build --target production -t splitchill/client:%IMAGE_TAG% client
+docker build --target production -t splitchill/server:$IMAGE_TAG server
+docker build --target production -t splitchill/client:$IMAGE_TAG client
 ```
 
 Optional push:
 
 ```bash
-docker tag splitchill/server:%IMAGE_TAG% my-registry/splitchill/server:%IMAGE_TAG%
-docker tag splitchill/client:%IMAGE_TAG% my-registry/splitchill/client:%IMAGE_TAG%
-docker push my-registry/splitchill/server:%IMAGE_TAG%
-docker push my-registry/splitchill/client:%IMAGE_TAG%
+docker tag splitchill/server:$IMAGE_TAG my-registry/splitchill/server:$IMAGE_TAG
+docker tag splitchill/client:$IMAGE_TAG my-registry/splitchill/client:$IMAGE_TAG
+docker push my-registry/splitchill/server:$IMAGE_TAG
+docker push my-registry/splitchill/client:$IMAGE_TAG
 ```
 
 ## 4) Jenkins CI/CD
@@ -84,68 +75,69 @@ docker push my-registry/splitchill/client:%IMAGE_TAG%
 - File: `Jenkinsfile`
 - Stages:
   1. Checkout and derive image tag from branch + commit SHA
-  2. Lint
-     - Frontend ESLint
-     - Backend JS syntax checks
-  3. Test (backend tests)
-  4. Build (frontend production build)
-  5. Docker build validation (`server` and `client` production images)
-  6. Push images (main branch only, if registry is configured)
-  7. Deploy (main branch only, Render deploy hook)
+  2. Jenkins runtime preflight (`git`, Docker CLI, Docker daemon, Docker Compose)
+  3. Client lint and server static checks in `node:20-alpine`
+  4. Backend tests
+  5. Frontend production build
+  6. Docker Compose validation
+  7. Docker image build (`server` and `client` production targets)
+  8. Optional image push
+  9. Optional Render deploy hook
 
 ### Required Jenkins credentials and env
 - Credentials:
-  - `docker-registry-credentials` (username/password)
-  - `render-deploy-hook-url` (secret text)
-- Global environment variable:
-  - `DOCKER_REGISTRY` (example: `ghcr.io/your-org`)
+  - `docker-registry-credentials` username/password or token, only required when `PUSH_IMAGES=true`
+  - `render-deploy-hook-url` secret text, only required when `DEPLOY_RENDER=true`
+- Optional global environment variable or build parameter:
+  - `DOCKER_REGISTRY` / `CI_DOCKER_REGISTRY`, for example `ghcr.io/your-org`
 
-#### Jenkins runtime requirements (important)
+### Jenkins runtime requirements
 
-- The included `Jenkinsfile` runs Node-based steps inside a Node Docker image using `docker.image(...).inside {}` so the Jenkins executor does not need Node/npm preinstalled. For that to work the Jenkins process must be able to launch Docker containers (one of the following):
+The Jenkinsfile intentionally does not use Jenkins' `docker.image(...).inside {}` DSL. This avoids `groovy.lang.MissingPropertyException: No such property: docker` when the Docker Pipeline plugin is missing or disabled.
 
-  1. A Jenkins agent (node) with Docker Engine installed and available to the Jenkins user.
-  2. A Jenkins controller/container with access to the host Docker socket (`/var/run/docker.sock`) so it can start sibling containers. See the recommended local run below.
+Node-based steps run through Docker CLI using `node:20-alpine`, so the Jenkins executor does not need Node/npm preinstalled. Jenkins does need Docker CLI, Docker daemon access, and Docker Compose.
 
-- Recommended local Jenkins run command (binds host Docker socket):
+Supported Jenkins runtimes:
+- Recommended: the included Jenkins + Docker-in-Docker Compose stack. Jenkins talks to a dedicated Docker daemon over the private Compose network and does not mount the host Docker socket.
+- Production: an isolated Jenkins agent VM/container with Docker Engine installed. Treat that agent as disposable build infrastructure and do not run application workloads on it.
+
+Recommended local Jenkins run with Docker Compose:
 
 ```bash
-# Start Jenkins with Docker socket mounted so pipelines can spawn containers
-docker run -d --name jenkins \
-  --restart=unless-stopped \
-  -p 8080:8080 -p 50000:50000 \
-  -v jenkins_home:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  jenkins/jenkins:lts-jdk17
+docker compose -f docker-compose.jenkins.yml up --build -d
 ```
 
-- Required Jenkins plugins / optional helpful plugins:
-  - Docker Pipeline (enables `docker.image(...).inside`).
-  - Pipeline (Workflow) and Pipeline: Groovy support.
-  - Credentials Plugin (store registry, webhook secrets).
-  - (Optional) Workspace Cleanup — not required because this repo uses `deleteDir()` in the pipeline cleanup.
+The Compose stack includes `docker:29-dind` with a named Docker data volume. It avoids direct host socket control while still allowing Docker image builds inside CI.
 
-- Credentials to create in Jenkins (names referenced by the pipeline):
-  - `docker-registry-credentials` — Docker registry username/password, or token.
-  - `render-deploy-hook-url` — a secret text or webhook URL used to trigger deploys.
+Required Jenkins plugins:
+- Pipeline (Workflow) and Pipeline: Groovy support
+- Git Plugin
+- Credentials Plugin
+- Credentials Binding Plugin
+- Pipeline Stage View
 
-- If your Jenkins environment cannot run Docker containers from pipeline steps:
-  - Option A: install Node/npm on the Jenkins agent(s) and configure a Node environment (or use the NodeJS Tool Installer plugin). Then modify the pipeline to run `npm` directly on the agent instead of inside a container.
-  - Option B: provide a dedicated build agent (VM or container) that has Docker and Node preinstalled and register it with Jenkins.
+Optional Jenkins plugins:
+- Docker Pipeline. The current Jenkinsfile does not require it, but it is safe to install.
+- NodeJS. The current Jenkinsfile uses containerized Node instead.
+- Workspace Cleanup. The current Jenkinsfile uses `deleteDir()` so cleanup still works without it.
 
-The `Jenkinsfile` intentionally avoids relying on the Workspace Cleanup plugin by using `deleteDir()` which is provided by the Jenkins pipeline core.
+Pipeline parameters:
+- `CI_DOCKER_REGISTRY`: optional registry host. Overrides global `DOCKER_REGISTRY`.
+- `PUSH_IMAGES`: when true on `main`, pushes immutable and `latest` tags.
+- `DEPLOY_RENDER`: when true on `main`, triggers the Render deploy hook.
 
 ### PR vs main behavior
 - Pull requests and non-main branches run validation only.
-- `main` branch additionally pushes images (if registry configured) and triggers deploy.
+- `main` can additionally push images when `PUSH_IMAGES=true` and a registry is configured.
+- `main` can additionally trigger Render when `DEPLOY_RENDER=true`.
 
 ## 5) Render Deployment
 
 - File: `render.yaml`
 - Services:
-  - `splitchill-api` (Node web service)
-  - `splitchill-client` (static web service)
-  - `splitchill-redis` (managed Redis)
+  - `splitchill-api` Node web service
+  - `splitchill-client` static web service
+  - `splitchill-redis` managed Redis
 - Health check path: `/api/health/ready`
 - Sensitive values are configured as Render secrets (`sync: false`), not committed.
 
@@ -153,9 +145,9 @@ Important: MongoDB must be provided via external connection string (`MONGO_URI`)
 
 ## 6) Environment and Secrets
 
-### Root `.env` (Compose + CI local defaults)
+### Root `.env`
 - Based on `.env.example`
-- Includes image tags, ports, Docker runtime variables.
+- Includes ports, Docker runtime values, image tags, and optional Jenkins local runner values.
 
 ### Server `.env`
 - Based on `server/.env.example`
@@ -175,30 +167,42 @@ Security rules:
 - Liveness: `GET /api/health`
 - Readiness: `GET /api/health/ready`
 - Compose startup waits for Mongo + Redis health before backend startup.
-- Backend fails fast in production when startup dependencies (for example Mongo) are unavailable.
+- Backend fails fast in production when startup dependencies, for example MongoDB, are unavailable.
 
 ## 8) Troubleshooting
 
-### Mongo container healthy but app not ready
-- Ensure replica set is initialized by checking:
-  - `docker compose logs mongo`
-- Confirm `MONGO_URI` includes `?replicaSet=rs0`.
+### Docker DSL error in Jenkins
+- Symptom: `groovy.lang.MissingPropertyException: No such property: docker`.
+- Fix: use the current Jenkinsfile, which uses Docker CLI instead of Docker Pipeline DSL.
+- Optional: install Docker Pipeline plugin, but it is not required by this pipeline.
 
-### Client cannot reach API in local Docker
-- Verify `VITE_API_URL` and `VITE_SOCKET_URL` in root `.env`.
-- Verify backend is healthy: `http://localhost:5000/api/health/ready`.
+### Docker CLI missing in Jenkins
+- Symptom: `docker: not found`.
+- Fix: run Jenkins with `docker/jenkins/Dockerfile` or install Docker CLI and Docker Compose on the agent.
+
+### Docker daemon unavailable
+- Symptom: `Cannot connect to the Docker daemon`.
+- Fix: use `docker-compose.jenkins.yml`, which starts a private `docker:29-dind` daemon and sets `DOCKER_HOST=tcp://docker:2375`.
+- For production, use a dedicated isolated Jenkins build agent with its own Docker Engine.
+
+### Jenkinsfile syntax validation
+- Jenkins validates the declarative syntax before running the pipeline.
+- For an explicit syntax check, use Jenkins' built-in linter endpoint from a configured Jenkins controller:
+
+```bash
+curl -sS -X POST -F "jenkinsfile=<Jenkinsfile" "$JENKINS_URL/pipeline-model-converter/validate"
+```
 
 ### Jenkins push stage skipped
-- Expected if branch is not `main`.
-- On `main`, ensure `DOCKER_REGISTRY` is set and `docker-registry-credentials` exists.
+- Expected unless branch is `main`, `PUSH_IMAGES=true`, and registry is configured.
 
-### Render deploy not triggered from Jenkins
-- Ensure credential `render-deploy-hook-url` is configured in Jenkins.
+### Render deploy not triggered
+- Expected unless branch is `main` and `DEPLOY_RENDER=true`.
 
 ## 9) Recommended Release Flow
 
 1. Open PR -> Jenkins validates lint/test/build/docker build.
 2. Merge to `main` -> Jenkins tags images with branch+SHA.
-3. Jenkins pushes images and triggers Render deploy.
-4. Verify `/api/health/ready` after deployment.
-5. Roll back by redeploying an older immutable image tag if needed.
+3. Run with `PUSH_IMAGES=true` to push release images.
+4. Run with `DEPLOY_RENDER=true` to trigger Render deployment.
+5. Verify `/api/health/ready` after deployment.
