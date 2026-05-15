@@ -57,6 +57,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 container_id=\$(docker create \\
+  --dns 8.8.8.8 \\
+  --dns 8.8.4.4 \\
   -e CI=true \\
   -e HOME=/tmp/node-home \\
   -e npm_config_cache=/tmp/npm-cache \\
