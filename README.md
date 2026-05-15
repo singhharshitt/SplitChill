@@ -120,6 +120,38 @@ Users can upload receipt images. The backend runs OCRSpace (or Tesseract.js fall
 ### DevOps
 - Docker Compose
 - Render.yaml
+- Jenkins CI/CD
+- Dockerized backend and frontend production builds
+- Health and readiness checks
+
+---
+
+## 🚢 DevOps & Release Setup
+
+The following DevOps tools are wired into this repository and were validated locally:
+
+- **Docker** — builds production-ready backend and frontend images.
+- **Docker Compose** — runs the full local stack with MongoDB, Redis, API, and client.
+- **MongoDB replica set** — enables atomic writes and transaction support in local and production-like runs.
+- **Redis** — supports Socket.IO scaling and shared runtime state.
+- **Health checks** — confirm container/service liveness during startup.
+- **Readiness checks** — expose `/api/health/ready` so deploys can wait for MongoDB.
+- **Jenkins** — runs lint, test, build, and Docker image validation through [Jenkinsfile](Jenkinsfile).
+- **Render** — deploys the API, client, and managed Redis through [render.yaml](render.yaml).
+
+What each one is doing in this project:
+
+- Dockerfiles in [server/Dockerfile](server/Dockerfile) and [client/Dockerfile](client/Dockerfile) produce clean release images.
+- [docker-compose.yml](docker-compose.yml) starts MongoDB, Redis, the API, and the client together for local development.
+- [docker-compose.prod.yml](docker-compose.prod.yml) provides a production-like local run using production image targets.
+- [Jenkinsfile](Jenkinsfile) validates pull requests and deploys main branch builds after checks pass.
+- [render.yaml](render.yaml) matches the production deployment layout and keeps secrets out of source control.
+
+Validated local state:
+
+- Backend container publishes on host port `5001` by default to avoid conflicts with an existing local process on `5000`.
+- Frontend uses `VITE_API_URL=http://localhost:5001/api` and `VITE_SOCKET_URL=http://localhost:5001` in the local Docker defaults.
+- MongoDB, Redis, server, and client containers start successfully with the Compose setup.
 
 ---
 
@@ -174,15 +206,33 @@ Mistral=your_mistral_key
 REDIS_URL=redis://127.0.0.1:6379
 ~~~
 
+For Docker-based local development, copy the root `.env.example` file to `.env` and use the Compose defaults. The local backend host port defaults to `5001` so it does not conflict with a host process already using `5000`.
+
 ---
 
 ## 🐳 Docker Setup
 
 ~~~bash
+cp .env.example .env
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+
 docker compose up --build
 ~~~
 
 Services: client, server, mongo (replica set), redis.
+
+### Production-like Docker run
+
+~~~bash
+docker compose -f docker-compose.prod.yml up --build -d
+~~~
+
+### CI/CD and deployment automation
+
+- Jenkins pipeline is defined in `Jenkinsfile`
+- Render blueprint is defined in `render.yaml`
+- Full DevOps runbook: `DEVOPS.md`
 
 ---
 

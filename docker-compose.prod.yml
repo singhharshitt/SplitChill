@@ -1,0 +1,99 @@
+name: splitchill
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok }",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    image: ${SERVER_IMAGE:-splitchill/server}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${SERVER_PORT:-5000}:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:8080}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/splitchill?replicaSet=rs0}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      SOCKET_REDIS_URL: ${SOCKET_REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-change-me-secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh}
+      HYPERSWITCH_BASE_URL: ${HYPERSWITCH_BASE_URL:-https://api.hyperswitch.io}
+      HYPERSWITCH_API_KEY: ${HYPERSWITCH_API_KEY:-}
+      HYPERSWITCH_WEBHOOK_SECRET: ${HYPERSWITCH_WEBHOOK_SECRET:-}
+      TEXTBEE_BASE_URL: ${TEXTBEE_BASE_URL:-https://api.textbee.dev/api/v1}
+      TEXTBEE_API_KEY: ${TEXTBEE_API_KEY:-}
+      TEXTBEE_DEVICE_ID: ${TEXTBEE_DEVICE_ID:-}
+      TEXTBEE_WEBHOOK_SECRET: ${TEXTBEE_WEBHOOK_SECRET:-}
+      DEMO_AUTH_ENABLED: ${DEMO_AUTH_ENABLED:-false}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/health/ready | grep -q '\"ready\":true'"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000/api}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:5000}
+    image: ${CLIENT_IMAGE:-splitchill/client}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "${CLIENT_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  mongo-data:
+  redis-data:

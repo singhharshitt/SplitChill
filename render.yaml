@@ -4,12 +4,15 @@ services:
     env: node
     rootDir: server
     plan: free
-    buildCommand: npm ci
-    startCommand: npm start
+    autoDeploy: true
+    buildCommand: npm ci --omit=dev
+    startCommand: node index.js
     healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 5000
       - key: CLIENT_URL
         sync: false
       - key: MONGO_URI
@@ -27,10 +30,57 @@ services:
       - key: RATE_LIMIT_MAX
         value: 300
       - key: REDIS_URL
-        sync: false
+        fromService:
+          type: redis
+          name: splitchill-redis
+          property: connectionString
       - key: SOCKET_REDIS_URL
-        sync: false
+        fromService:
+          type: redis
+          name: splitchill-redis
+          property: connectionString
+      - key: HYPERSWITCH_BASE_URL
+        value: https://api.hyperswitch.io
       - key: HYPERSWITCH_API_KEY
         sync: false
       - key: HYPERSWITCH_WEBHOOK_SECRET
         sync: false
+      - key: HYPERSWITCH_PAYMENT_RESPONSE_HASH_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: OCRSPACE_API_KEY
+        sync: false
+      - key: TEXTBEE_API_KEY
+        sync: false
+      - key: TEXTBEE_DEVICE_ID
+        sync: false
+      - key: TEXTBEE_WEBHOOK_SECRET
+        sync: false
+      - key: DEMO_AUTH_ENABLED
+        value: false
+
+  - type: web
+    name: splitchill-client
+    env: static
+    rootDir: client
+    plan: free
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_SOCKET_URL
+        sync: false
+
+  - type: redis
+    name: splitchill-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
