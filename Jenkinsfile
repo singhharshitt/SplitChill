@@ -28,7 +28,25 @@ test -d "\$source_dir" || {
   exit 1
 }
 
-docker image inspect ${nodeImage} >/dev/null 2>&1 || docker pull ${nodeImage}
+echo "Preparing Docker image: ${nodeImage}"
+if ! docker image inspect ${nodeImage} >/dev/null 2>&1; then
+  attempt=1
+  while [ "\$attempt" -le 3 ]; do
+    echo "Pulling ${nodeImage} (attempt \$attempt/3)..."
+    if timeout 10m docker pull ${nodeImage}; then
+      break
+    fi
+    attempt=\$((attempt + 1))
+    if [ "\$attempt" -le 3 ]; then
+      sleep \$((attempt * 5))
+    fi
+  done
+
+  if ! docker image inspect ${nodeImage} >/dev/null 2>&1; then
+    echo "ERROR: failed to pull ${nodeImage}"
+    exit 1
+  fi
+fi
 
 container_id=""
 cleanup() {
@@ -44,15 +62,22 @@ container_id=\$(docker create \\
   -e npm_config_cache=/tmp/npm-cache \\
   -e npm_config_audit=false \\
   -e npm_config_fund=false \\
+  -e npm_config_progress=false \\
   -e npm_config_fetch_retries=5 \\
   -e npm_config_fetch_retry_mintimeout=20000 \\
   -e npm_config_fetch_retry_maxtimeout=120000 \\
+  -e npm_config_fetch_timeout=120000 \\
+  -e npm_config_network_timeout=240000 \\
   -v ${cacheVolume}:/tmp/npm-cache \\
   -w /workspace \\
   ${nodeImage} sh -lc ${shellQuote(isolatedCommand)})
 
+echo "Copying source into container..."
 docker cp "\$source_dir/." "\$container_id:/workspace"
+
+echo "Running verification inside container..."
 timeout 600 docker start -a "\$container_id"
+
 exit_code=\$(docker inspect "\$container_id" --format '{{.State.ExitCode}}')
 exit "\$exit_code"
 """
@@ -94,7 +119,8 @@ pipeline {
     APP_NAME = 'splitchill'
     SERVER_IMAGE_NAME = 'splitchill/server'
     CLIENT_IMAGE_NAME = 'splitchill/client'
-
+    DOCKER_CLIENT_TIMEOUT = '300'
+    COMPOSE_HTTP_TIMEOUT = '300'
   }
 
   stages {
