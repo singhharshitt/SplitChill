@@ -101,18 +101,6 @@ pipeline {
       defaultValue: '',
       description: 'Optional registry host'
     )
-
-    booleanParam(
-      name: 'PUSH_IMAGES',
-      defaultValue: false,
-      description: 'Push Docker images'
-    )
-
-    booleanParam(
-      name: 'DEPLOY_RENDER',
-      defaultValue: false,
-      description: 'Trigger Render deployment'
-    )
   }
 
   environment {
@@ -295,95 +283,6 @@ docker build \
   -t "splitchill/client:ci-${IMAGE_TAG}" \
   client
 '''
-      }
-    }
-
-    stage('Push Images') {
-      options {
-        timeout(time: 10, unit: 'MINUTES')
-      }
-
-      when {
-        allOf {
-          branch 'main'
-
-          expression {
-            return params.PUSH_IMAGES &&
-              (env.EFFECTIVE_DOCKER_REGISTRY ?: '').trim()
-          }
-        }
-      }
-
-      steps {
-
-        withCredentials([
-          usernamePassword(
-            credentialsId: env.REGISTRY_CREDS,
-            passwordVariable: 'DOCKER_PASSWORD',
-            usernameVariable: 'DOCKER_USERNAME'
-          )
-        ]) {
-
-          sh '''
-#!/bin/sh
-set -eu
-
-echo "$DOCKER_PASSWORD" |
-docker login "$EFFECTIVE_DOCKER_REGISTRY" \
-  -u "$DOCKER_USERNAME" \
-  --password-stdin
-
-docker tag \
-  "splitchill/server:ci-${IMAGE_TAG}" \
-  "${EFFECTIVE_DOCKER_REGISTRY}/${SERVER_IMAGE_NAME}:${IMAGE_TAG}"
-
-docker tag \
-  "splitchill/client:ci-${IMAGE_TAG}" \
-  "${EFFECTIVE_DOCKER_REGISTRY}/${CLIENT_IMAGE_NAME}:${IMAGE_TAG}"
-
-docker push \
-  "${EFFECTIVE_DOCKER_REGISTRY}/${SERVER_IMAGE_NAME}:${IMAGE_TAG}"
-
-docker push \
-  "${EFFECTIVE_DOCKER_REGISTRY}/${CLIENT_IMAGE_NAME}:${IMAGE_TAG}"
-
-docker logout "$EFFECTIVE_DOCKER_REGISTRY" || true
-'''
-        }
-      }
-    }
-
-    stage('Deploy Render Hook') {
-      options {
-        timeout(time: 2, unit: 'MINUTES')
-      }
-
-      when {
-        allOf {
-          branch 'main'
-
-          expression {
-            return params.DEPLOY_RENDER
-          }
-        }
-      }
-
-      steps {
-
-        withCredentials([
-          string(
-            credentialsId: env.RENDER_DEPLOY_HOOK_CREDS,
-            variable: 'RENDER_DEPLOY_HOOK_URL'
-          )
-        ]) {
-
-          sh '''
-#!/bin/sh
-set -eu
-
-curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
-'''
-        }
       }
     }
   }
