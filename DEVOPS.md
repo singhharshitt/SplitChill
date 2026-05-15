@@ -188,6 +188,12 @@ Security rules:
 - Fix: use the current Jenkinsfile, which uses Docker CLI instead of Docker Pipeline DSL.
 - Optional: install Docker Pipeline plugin, but it is not required by this pipeline.
 
+### GitHub checkout TLS failure
+- Symptom: `GnuTLS recv error (-110): The TLS connection was non-properly terminated`.
+- Cause: transient network/TLS interruption while Jenkins is fetching from GitHub.
+- Fix in this repo: the Jenkinsfile disables Declarative's automatic checkout, sets conservative Git HTTP transport options, and retries the explicit checkout three times.
+- If this still happens before the pipeline starts, Jenkins is failing while fetching the Jenkinsfile itself. Rerun the build, then check Jenkins host/container DNS, proxy, firewall, and outbound HTTPS access to `github.com`.
+
 ### Docker CLI missing in Jenkins
 - Symptom: `docker: not found`.
 - Fix: recreate Jenkins with this repo's Compose stack:

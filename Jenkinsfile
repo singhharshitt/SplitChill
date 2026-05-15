@@ -52,6 +52,7 @@ pipeline {
 
   options {
     timestamps()
+    skipDefaultCheckout(true)
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '30'))
   }
@@ -88,7 +89,18 @@ pipeline {
 
     stage('Checkout') {
       steps {
-        checkout scm
+        sh '''
+#!/bin/sh
+set -eu
+
+git config --global http.lowSpeedLimit 1000
+git config --global http.lowSpeedTime 60
+git config --global http.version HTTP/1.1
+'''
+
+        retry(3) {
+          checkout scm
+        }
 
         script {
           String branchName = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'local'
@@ -319,17 +331,22 @@ curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
   post {
 
     always {
-
-      sh '''
+      script {
+        node {
+          sh '''
 #!/bin/sh
 
-docker image rm \
-  "splitchill/server:ci-${IMAGE_TAG}" \
-  "splitchill/client:ci-${IMAGE_TAG}" \
-  >/dev/null 2>&1 || true
+if command -v docker >/dev/null 2>&1; then
+  docker image rm \
+    "splitchill/server:ci-${IMAGE_TAG}" \
+    "splitchill/client:ci-${IMAGE_TAG}" \
+    >/dev/null 2>&1 || true
+fi
 '''
 
-      deleteDir()
+          deleteDir()
+        }
+      }
     }
 
     failure {
