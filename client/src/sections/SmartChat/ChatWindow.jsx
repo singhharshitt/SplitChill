@@ -9,6 +9,7 @@ import usePagination from "../../hooks/usePagination.js";
 import { useLiveData } from "../../context/LiveDataContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { mapMessage, userIdOf } from "../../lib/liveDataTransforms.js";
+import { getSocket } from "../../api/socket.js";
 
 function TypingIndicator({ users }) {
   const names = Object.values(users || {});
@@ -43,7 +44,7 @@ export default function ChatWindow({ chat, onSendMessage }) {
     { limit: 30 }
   );
   const {
-    appendItems,
+    upsertItems,
     clearItems,
     hasMore,
     isFetching,
@@ -62,10 +63,35 @@ export default function ChatWindow({ chat, onSendMessage }) {
     loadInitial(true);
   }, [chat?.id, clearItems, loadInitial]);
 
+  // Sync with chat.messages which receives optimistic updates from LiveDataContext
   useEffect(() => {
-    if (!chat?.messages?.length) return;
-    appendItems(chat.messages);
-  }, [chat?.messages, appendItems]);
+    if (chat?.messages?.length) {
+      upsertItems(chat.messages);
+    }
+  }, [chat?.messages, upsertItems]);
+
+  useEffect(() => {
+    if (!chat?.id) return;
+
+    const socket = getSocket();
+    if (!socket?.connected) return;
+
+    const handleChatMessage = (payload) => {
+      if (payload?.groupId === chat.id && payload?.message) {
+        const senderId = userIdOf(payload.message.sender);
+        const currentUserId = userIdOf(user);
+        if (senderId !== currentUserId) {
+          upsertItems([payload.message]);
+        }
+      }
+    };
+
+    socket.on("chat:message", handleChatMessage);
+
+    return () => {
+      socket.off("chat:message", handleChatMessage);
+    };
+  }, [chat?.id, upsertItems, user]);
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [items]);
 
@@ -86,10 +112,10 @@ export default function ChatWindow({ chat, onSendMessage }) {
     setInput("");
     if (chat?.id) sendStopTyping(chat.id);
     clearTimeout(typingTimeout.current);
-    const newMessage = await onSendMessage?.(text);
-    if (newMessage) {
-      appendItems([newMessage]);
-    }
+
+    // LiveDataContext handles the optimistic update now, which will update chat.messages
+    // and trigger the useEffect above to upsertItems
+    await onSendMessage?.(text);
   };
 
   if (!chat) {

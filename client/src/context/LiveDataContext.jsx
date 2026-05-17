@@ -320,6 +320,62 @@ export function LiveDataProvider({ children }) {
 
   // ── Send message via socket for real-time, with HTTP fallback ──
   const sendMessage = async (groupId, text) => {
+    // eslint-disable-next-line react-hooks/purity
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage = {
+      _id: tempId,
+      id: tempId,
+      text,
+      sender: user,
+      createdAt: new Date().toISOString(),
+      type: "text"
+    };
+
+    // 1. Optimistic Update
+    setGroupExtras((existing) => ({
+      ...existing,
+      [groupId]: {
+        ...(existing[groupId] || {}),
+        messages: [...(existing[groupId]?.messages || []), tempMessage],
+      },
+    }));
+
+    const handleSuccess = (realMessage) => {
+      setGroupExtras((existing) => {
+        const currentMessages = existing[groupId]?.messages || [];
+        // Replace temp message with real message
+        const nextMessages = currentMessages.map((msg) =>
+          userIdOf(msg) === tempId ? realMessage : msg
+        );
+        // Deduplicate just in case socket event already added it
+        const uniqueMessages = nextMessages.filter((msg, index, self) =>
+          index === self.findIndex((t) => userIdOf(t) === userIdOf(msg))
+        );
+        return {
+          ...existing,
+          [groupId]: {
+            ...(existing[groupId] || {}),
+            messages: uniqueMessages,
+          },
+        };
+      });
+      return mapMessage(realMessage, currentUserId);
+    };
+
+    const handleError = (error) => {
+      // Revert optimistic update
+      setGroupExtras((existing) => ({
+        ...existing,
+        [groupId]: {
+          ...(existing[groupId] || {}),
+          messages: (existing[groupId]?.messages || []).filter(
+            (msg) => userIdOf(msg) !== tempId
+          ),
+        },
+      }));
+      throw error;
+    };
+
     const socket = getSocket();
     if (socket?.connected) {
       return new Promise((resolve, reject) => {
@@ -339,7 +395,7 @@ export function LiveDataProvider({ children }) {
         };
         socket.emit("chat:message", { groupId, text }, (response) => {
           if (response?.success) {
-            resolveOnce(mapMessage(response.message, currentUserId));
+            resolveOnce(handleSuccess(response.message));
           } else {
             // Fallback to HTTP
             sendMessageHTTP(groupId, text).then(resolveOnce).catch(rejectOnce);
@@ -349,9 +405,10 @@ export function LiveDataProvider({ children }) {
         fallbackTimer = setTimeout(() => {
           sendMessageHTTP(groupId, text).then(resolveOnce).catch(rejectOnce);
         }, 3000);
-      });
+      }).catch(handleError);
     }
-    return sendMessageHTTP(groupId, text);
+    
+    return sendMessageHTTP(groupId, text).catch(handleError);
   };
 
   const sendMessageHTTP = async (groupId, text) => {

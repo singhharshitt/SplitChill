@@ -48,3 +48,6 @@ docker/**/*.local
 # Optional package manager stores (uncomment if needed)
 # .pnpm-store/
 # .yarn/
+
+# OpenMemory - IDE/Assistant specific rules
+.windsurf\rules\openmemory.md

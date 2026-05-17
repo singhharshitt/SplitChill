@@ -48,7 +48,7 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
     { limit: 30 }
   );
   const {
-    appendItems,
+    upsertItems: upsertMessages,
     clearItems: clearMessages,
     items: messages,
     loadInitial: loadInitialMessages,
@@ -83,9 +83,9 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
 
   useEffect(() => {
     if (group?.messages?.length) {
-      appendItems(group.messages);
+      upsertMessages(group.messages);
     }
-  }, [group?.messages, appendItems]);
+  }, [group?.messages, upsertMessages]);
 
   useEffect(() => {
     if (group?.expenses?.length) {
@@ -112,10 +112,10 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
     setMessageInput("");
     if (group?.id) sendStopTyping(group.id);
     clearTimeout(typingTimeout.current);
-    const newMessage = await onSendMessage?.(text);
-    if (newMessage) {
-      appendItems([newMessage]);
-    }
+    
+    // onSendMessage (which calls LiveDataContext.sendMessage) will optimistically update group.messages, 
+    // which then triggers upsertMessages via the useEffect above.
+    await onSendMessage?.(text);
   };
 
   const openSettlement = () => {

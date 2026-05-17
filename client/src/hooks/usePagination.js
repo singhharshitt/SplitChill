@@ -178,6 +178,70 @@ export function usePagination(fetchFn, options = {}) {
   }, []);
 
   /**
+   * Upsert items (update existing by ID, append new, replace temp IDs)
+   */
+  const upsertItems = useCallback((newItems) => {
+    setItems(prev => {
+      let next = [...prev];
+      let changed = false;
+
+      newItems.forEach((newItem) => {
+        const newKey = getItemKey(newItem);
+        if (!newKey) return;
+
+        // Check if there's a matching temp ID that should be replaced
+        const isRealMessageReplacingTemp = !newKey.startsWith('temp-') && newItem.text;
+        
+        if (itemIdsRef.current.has(newKey)) {
+          // Update existing
+          const idx = next.findIndex(item => getItemKey(item) === newKey);
+          if (idx !== -1) {
+            // Only update if something changed (simple reference check could be enough but let's just replace)
+            next[idx] = { ...next[idx], ...newItem };
+            changed = true;
+          }
+        } else {
+          // It's a new item
+          // Check if it replaces a temp item (same text, same sender, temp ID)
+          if (isRealMessageReplacingTemp) {
+            const tempIdx = next.findIndex(item => {
+              const k = getItemKey(item);
+              return k.startsWith('temp-') && item.text === newItem.text;
+            });
+            if (tempIdx !== -1) {
+              const oldTempKey = getItemKey(next[tempIdx]);
+              itemIdsRef.current.delete(oldTempKey);
+              itemIdsRef.current.add(newKey);
+              next[tempIdx] = newItem;
+              changed = true;
+              return;
+            }
+          }
+          
+          itemIdsRef.current.add(newKey);
+          next.push(newItem);
+          changed = true;
+        }
+      });
+
+      // Cleanup resolved temp IDs that are no longer in newItems but are in our state
+      // (This happens when LiveDataContext removes the temp item and provides the real one)
+      const newItemKeys = new Set(newItems.map(getItemKey));
+      const nextFiltered = next.filter(item => {
+        const key = getItemKey(item);
+        if (key.startsWith('temp-') && !newItemKeys.has(key)) {
+          itemIdsRef.current.delete(key);
+          changed = true;
+          return false;
+        }
+        return true;
+      });
+
+      return changed ? nextFiltered : prev;
+    });
+  }, []);
+
+  /**
    * Remove item by ID
    */
   const removeItem = useCallback((itemId) => {
@@ -250,6 +314,7 @@ export function usePagination(fetchFn, options = {}) {
     loadMore,
     prependItems,
     appendItems,
+    upsertItems,
     removeItem,
     updateItem,
     findItem,
