@@ -69,9 +69,9 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
         {shares.map((p) => (
           <div
             key={p.id}
-            className="flex items-center justify-between py-3 px-4 rounded-xl bg-[#FAFAF8] border border-black/[0.02]"
+            className="flex items-center justify-between py-3 px-4 rounded-xl bg-[#FAFAF8] border border-black/[0.02] hover:border-black/5 transition-all"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-1">
               <div className="w-8 h-8 rounded-full bg-black/[0.03] flex items-center justify-center text-sm font-medium text-black">
                 {p.initial}
               </div>
@@ -79,17 +79,18 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
             </div>
 
             {splitType === "custom" ? (
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-400">₹</span>
+              <div className="flex items-center gap-2 ml-4">
+                <span className="text-sm text-gray-400 font-medium">₹</span>
                 <input
                   type="text"
                   inputMode="decimal"
                   pattern="[0-9]*[.,]?[0-9]*"
                   autoComplete="off"
                   spellCheck={false}
+                  placeholder="0"
                   value={customShares[p.id] || ""}
                   onChange={(e) => onCustomChange(p.id, e.target.value)}
-                  className="w-20 text-right text-sm font-serif bg-white border border-black/5 rounded-lg px-2 py-1 outline-none focus:border-[#A3FDA7] transition-colors"
+                  className="w-24 text-right text-sm font-serif bg-white border border-black/10 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-[#A3FDA7] focus:border-[#A3FDA7] transition-all"
                 />
               </div>
             ) : (

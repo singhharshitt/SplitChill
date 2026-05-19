@@ -125,18 +125,33 @@ export default function Split() {
   useEffect(() => {
     let cancelled = false;
     async function loadRecommendation() {
-      if (!ready || !selectedGroup) {
+      if (!ready || !selectedGroup || !Number.isFinite(amountValue) || amountValue <= 0) {
         setRecommendation(null);
         return;
       }
       try {
-        const result = await recommendSplit(selectedGroup.id, {
-          amount: amountValue,
+        const recommendParticipants = buildParticipantsPayload(people, splitType, customShares);
+        if (recommendParticipants.length === 0) {
+          setRecommendation(null);
+          return;
+        }
+        
+        const finalAmount = Number(amountValue);
+        if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 10000000) {
+          setRecommendation(null);
+          return;
+        }
+        
+        const payload = {
+          amount: finalAmount,
           splitType: mapSplitType(splitType),
-          participants: buildParticipantsPayload(people, splitType, customShares),
-        });
+        };
+        if (recommendParticipants.length > 0) {
+          payload.participants = recommendParticipants;
+        }
+        const result = await recommendSplit(selectedGroup.id, payload);
         if (!cancelled) setRecommendation(result);
-      } catch {
+      } catch (error) {
         if (!cancelled) setRecommendation(null);
       }
     }
@@ -152,11 +167,27 @@ export default function Split() {
     }
     setExtraPeople((current) => current.filter((person) => person.id !== id));
   };
+  // Persist and restore customShares from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("splitChill_customShares");
+    if (saved) {
+      try {
+        setCustomShares(JSON.parse(saved));
+      } catch (e) {
+        // silently ignore parse errors
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("splitChill_customShares", JSON.stringify(customShares));
+  }, [customShares]);
+
   const handleCustomChange = (id, val) =>
     setCustomShares((s) => ({ ...s, [id]: val }));
 
   const openReceiptPicker = () => {
-    if (isScanning || !selectedGroup || !receiptInputRef.current) return;
+    if (isScanning || !receiptInputRef.current) return;
     receiptInputRef.current.value = "";
     receiptInputRef.current.click();
   };
@@ -167,12 +198,29 @@ export default function Split() {
       return;
     }
 
+    const userId = userIdOf(user);
+    if (!userId || typeof userId !== "string" || userId.length === 0) {
+      setFeedback("Invalid user account. Please log in again.");
+      return;
+    }
+
     if (!isCurrencyInputValid(amount) || amountValue <= 0) {
       setFeedback("Enter a valid amount.");
       return;
     }
 
+    if (!Number.isFinite(amountValue) || amountValue <= 0 || amountValue > 10000000) {
+      setFeedback("Amount must be a valid number between 0 and 10000000.");
+      return;
+    }
+
     if (people.length === 0) {
+      setFeedback("Add at least one person to split with.");
+      return;
+    }
+
+    const participants = buildParticipantsPayload(people, splitType, customShares);
+    if (participants.length === 0) {
       setFeedback("Add at least one person to split with.");
       return;
     }
@@ -207,12 +255,19 @@ export default function Split() {
         return;
       }
 
+      const finalAmount = Number(amountValue);
+      if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 10000000) {
+        setFeedback("Invalid amount. Please check and try again.");
+        setIsSaving(false);
+        return;
+      }
+
       await addExpense(groupToUse.id, {
-        title,
-        amount: amountValue,
-        paidBy: userIdOf(user),
+        title: String(title).trim(),
+        amount: finalAmount,
+        paidBy: userId,
         splitType: mapSplitType(splitType),
-        participants: buildParticipantsPayload(people, splitType, customShares),
+        participants: participants.length > 0 ? participants : undefined,
       });
       setAmount("");
       setTitle("New split");
@@ -269,7 +324,10 @@ export default function Split() {
       const data = unwrap(await api.post(`/groups/${groupToUse.id}/scan-receipt`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       }));
-      if (data.fields?.total != null && data.fields.total !== "") setAmount(String(data.fields.total));
+      if (data.fields?.total != null && data.fields?.total !== "") {
+        const numericTotal = String(data.fields.total).replace(/[^\d.]/g, '');
+        if (numericTotal) setAmount(numericTotal);
+      }
       if (data.fields?.merchant) setTitle(data.fields.merchant);
       setScanResult(data);
       setScanFeedback(data.fields?.total != null ? "Receipt scanned. Review the amount before creating the split." : "Receipt scanned, but no total was detected.");
@@ -396,7 +454,7 @@ export default function Split() {
           <SplitTypeSelector active={splitType} onSelect={setSplitType} />
         </section>
 
-        {ready && (
+        {(ready || (splitType === "custom" && people.length > 0 && amountValue > 0)) && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <SplitPreview
               amount={amount}
@@ -453,8 +511,13 @@ function mapSplitType(type) {
 }
 
 function buildParticipantsPayload(people, splitType, customShares) {
+  const validPeople = people.filter((person) => person.id && typeof person.id === "string" && person.id.length > 0);
   if (splitType === "custom") {
-    return people.map((person) => ({ user: person.id, share: Number(customShares[person.id] || 0) }));
+    return validPeople.map((person) => {
+      const shareValue = Number(parseCurrencyInput(customShares[person.id] || 0));
+      if (!Number.isFinite(shareValue) || shareValue < 0) return null;
+      return { user: person.id, share: shareValue };
+    }).filter(Boolean);
   }
-  return people.map((person) => ({ user: person.id }));
+  return validPeople.map((person) => ({ user: person.id }));
 }

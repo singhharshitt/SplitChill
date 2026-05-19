@@ -129,7 +129,30 @@ function parseReceiptFields(text) {
   const totalLine = [...lines].reverse().find((line) => /\b(?:grand\s*total|amount\s*due|balance\s*due|net\s*amount|total\s*due|total)\b/i.test(line) && !/\bsubtotal\b/i.test(line));
   if (totalLine) {
     const totalMatch = totalLine.match(currencyPattern);
-    if (totalMatch) fields.total = parseFloat(totalMatch[1].replace(/,/g, ""));
+    if (totalMatch) {
+      fields.total = parseFloat(totalMatch[1].replace(/,/g, ""));
+    } else {
+      // If amount not found on same line, check the next line
+      const totalLineIndex = lines.indexOf(totalLine);
+      if (totalLineIndex >= 0 && totalLineIndex + 1 < lines.length) {
+        const nextLine = lines[totalLineIndex + 1];
+        const nextLineMatch = nextLine.match(currencyPattern);
+        if (nextLineMatch) {
+          fields.total = parseFloat(nextLineMatch[1].replace(/,/g, ""));
+        }
+      }
+    }
+  }
+  // If still no total, try to find any line with just currency amount near the end
+  if (!Number.isFinite(fields.total)) {
+    const currencyOnlyPattern = /^(?:₹|rs\.?|inr|usd|eur|gbp|\$|£|€)?\s*([\d,]+(?:\.\d{1,2})?)\s*$/i;
+    for (let i = lines.length - 1; i >= Math.max(0, lines.length - 5); i--) {
+      const match = lines[i].match(currencyOnlyPattern);
+      if (match) {
+        fields.total = parseFloat(match[1].replace(/,/g, ""));
+        break;
+      }
+    }
   }
 
   // Taxes — common bill patterns.
