@@ -89,6 +89,18 @@ function SplitCTA({ disabled, onClick, isSaving }) {
   );
 }
 
+function getStoredCustomShares() {
+  try {
+    return JSON.parse(localStorage.getItem("splitChill_customShares") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function memberIdOf(member) {
+  return userIdOf(member?.user || member);
+}
+
 
 export default function Split() {
   const { user } = useAuth();
@@ -98,7 +110,7 @@ export default function Split() {
   const [extraPeople, setExtraPeople] = useState([]);
   const [removedPeople, setRemovedPeople] = useState([]);
   const [splitType, setSplitType] = useState("equal");
-  const [customShares, setCustomShares] = useState({});
+  const [customShares, setCustomShares] = useState(getStoredCustomShares);
   const [recommendation, setRecommendation] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [title, setTitle] = useState("New split");
@@ -106,6 +118,7 @@ export default function Split() {
   const [scanResult, setScanResult] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const submittingRef = useRef(false);
   const [directChatOpen, setDirectChatOpen] = useState(false);
   const groupPeople = useMemo(() => (selectedGroup?.members || []).map((member) => ({
     id: member.id,
@@ -130,18 +143,32 @@ export default function Split() {
         return;
       }
       try {
-        const recommendParticipants = buildParticipantsPayload(people, splitType, customShares);
+        const allParticipants = buildParticipantsPayload(people, splitType, customShares);
+        // Only send participants who are already members of the selected group
+        // Derive member id robustly (matches the logic used when creating a split)
+        const groupMemberIds = new Set((selectedGroup.members || []).map(memberIdOf));
+        const recommendParticipants = allParticipants.filter((p) => groupMemberIds.has(p.user));
         if (recommendParticipants.length === 0) {
           setRecommendation(null);
           return;
         }
-        
+
         const finalAmount = Number(amountValue);
         if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 10000000) {
           setRecommendation(null);
           return;
         }
-        
+
+        // For custom split, verify the filtered share total still equals the amount.
+        // If filtering removed a participant who had shares, the total is wrong — skip silently.
+        if (mapSplitType(splitType) === "custom") {
+          const filteredTotal = recommendParticipants.reduce((sum, p) => sum + Number(p.share || 0), 0);
+          if (Math.abs(filteredTotal - finalAmount) > 0.01) {
+            setRecommendation(null);
+            return;
+          }
+        }
+
         const payload = {
           amount: finalAmount,
           splitType: mapSplitType(splitType),
@@ -151,12 +178,18 @@ export default function Split() {
         }
         const result = await recommendSplit(selectedGroup.id, payload);
         if (!cancelled) setRecommendation(result);
-      } catch (error) {
-        if (!cancelled) setRecommendation(null);
+      } catch {
+        if (!cancelled) {
+          setRecommendation(null);
+        }
       }
     }
-    loadRecommendation();
-    return () => { cancelled = true; };
+    // Debounce: wait 400ms after last change before firing the API call
+    const timer = setTimeout(loadRecommendation, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [amountValue, customShares, people, ready, recommendSplit, selectedGroup, splitType]);
 
   const handleAddPerson = (person) => setExtraPeople((p) => [...p, person]);
@@ -167,18 +200,6 @@ export default function Split() {
     }
     setExtraPeople((current) => current.filter((person) => person.id !== id));
   };
-  // Persist and restore customShares from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("splitChill_customShares");
-    if (saved) {
-      try {
-        setCustomShares(JSON.parse(saved));
-      } catch (e) {
-        // silently ignore parse errors
-      }
-    }
-  }, []);
-
   useEffect(() => {
     localStorage.setItem("splitChill_customShares", JSON.stringify(customShares));
   }, [customShares]);
@@ -193,93 +214,117 @@ export default function Split() {
   };
 
   const handleCreateSplit = async () => {
-    if (!user) {
-      setFeedback("You must be logged in to create a split.");
-      return;
-    }
-
-    const userId = userIdOf(user);
-    if (!userId || typeof userId !== "string" || userId.length === 0) {
-      setFeedback("Invalid user account. Please log in again.");
-      return;
-    }
-
-    if (!isCurrencyInputValid(amount) || amountValue <= 0) {
-      setFeedback("Enter a valid amount.");
-      return;
-    }
-
-    if (!Number.isFinite(amountValue) || amountValue <= 0 || amountValue > 10000000) {
-      setFeedback("Amount must be a valid number between 0 and 10000000.");
-      return;
-    }
-
-    if (people.length === 0) {
-      setFeedback("Add at least one person to split with.");
-      return;
-    }
-
-    const participants = buildParticipantsPayload(people, splitType, customShares);
-    if (participants.length === 0) {
-      setFeedback("Add at least one person to split with.");
-      return;
-    }
-
-    if (splitType === "custom" && !customReady) {
-      setFeedback(`Custom shares must add up to Rs ${amountValue.toLocaleString()}.`);
-      return;
-    }
-
-    setIsSaving(true);
-    setFeedback("");
+    // Ref guard prevents concurrent submissions from rapid button clicks
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     try {
-      let groupToUse = selectedGroup;
+      if (!user) {
+        setFeedback("You must be logged in to create a split.");
+        return;
+      }
 
-      if (!groupToUse && extraPeople.length > 0) {
-        const groupName = `Split - Rs ${amountValue.toLocaleString()} ${new Date().toLocaleDateString()}`;
-        const participantIds = extraPeople.map(p => p.id).filter(Boolean);
-        const newGroup = await createGroup({
-          name: groupName,
-          type: "direct",
-          memberIds: participantIds,
-        });
-        if (newGroup && newGroup.group) {
-          groupToUse = newGroup.group;
-          setSelectedGroupId(newGroup.group.id);
+      const userId = userIdOf(user);
+      if (!userId || typeof userId !== "string" || userId.length === 0) {
+        setFeedback("Invalid user account. Please log in again.");
+        return;
+      }
+
+      if (!isCurrencyInputValid(amount) || amountValue <= 0) {
+        setFeedback("Enter a valid amount.");
+        return;
+      }
+
+      if (!Number.isFinite(amountValue) || amountValue <= 0 || amountValue > 10000000) {
+        setFeedback("Amount must be a valid number between 0 and 10000000.");
+        return;
+      }
+
+      if (people.length === 0) {
+        setFeedback("Add at least one person to split with.");
+        return;
+      }
+
+      const participants = buildParticipantsPayload(people, splitType, customShares);
+      if (participants.length === 0) {
+        setFeedback("Add at least one person to split with.");
+        return;
+      }
+
+      if (splitType === "custom" && !customReady) {
+        setFeedback(`Custom shares must add up to Rs ${amountValue.toLocaleString()}.`);
+        return;
+      }
+
+      setIsSaving(true);
+      setFeedback("");
+      try {
+        let groupToUse = selectedGroup;
+
+        if (!groupToUse && extraPeople.length > 0) {
+          const groupName = `Split - Rs ${amountValue.toLocaleString()} ${new Date().toLocaleDateString()}`;
+          const participantIds = extraPeople.map(p => p.id).filter(Boolean);
+          const newGroup = await createGroup({
+            name: groupName,
+            type: "direct",
+            memberIds: participantIds,
+          });
+          if (newGroup) {
+            groupToUse = newGroup.group || newGroup;
+            setSelectedGroupId(userIdOf(groupToUse));
+          }
         }
-      }
 
-      if (!groupToUse) {
-        setFeedback("Please select or create a group first.");
+        if (!groupToUse) {
+          setFeedback("Please select or create a group first.");
+          return;
+        }
+
+        const finalAmount = Number(amountValue);
+        if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 10000000) {
+          setFeedback("Invalid amount. Please check and try again.");
+          return;
+        }
+
+        // Filter to only participants who are members of the resolved group to avoid 400 errors
+        const groupMemberIds = new Set((groupToUse.members || []).map(memberIdOf));
+        const filteredParticipants = participants.filter((p) => groupMemberIds.has(p.user));
+
+        // For custom split, verify the filtered share total still equals the amount.
+        // Filtering can remove participants who have shares assigned, corrupting the total.
+        if (mapSplitType(splitType) === "custom") {
+          const filteredTotal = filteredParticipants.reduce((sum, p) => sum + Number(p.share || 0), 0);
+          if (Math.abs(filteredTotal - finalAmount) > 0.01) {
+            setFeedback("Some people with custom share amounts are not members of the selected group. Add them to the group first, or switch to Equal split.");
+            return;
+          }
+        }
+
+        await addExpense(userIdOf(groupToUse), {
+          title: String(title).trim(),
+          amount: finalAmount,
+          paidBy: userId,
+          splitType: mapSplitType(splitType),
+          participants: filteredParticipants.length > 0 ? filteredParticipants : undefined,
+        });
+        setAmount("");
+        setTitle("New split");
+        setCustomShares({});
+        setScanResult(null);
+        setScanFeedback("");
+        setExtraPeople([]);
+        setFeedback("Split created and synced.");
+      } catch (error) {
+        setFeedback(
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          error.message ||
+          "Could not create split."
+        );
+      } finally {
         setIsSaving(false);
-        return;
       }
-
-      const finalAmount = Number(amountValue);
-      if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 10000000) {
-        setFeedback("Invalid amount. Please check and try again.");
-        setIsSaving(false);
-        return;
-      }
-
-      await addExpense(groupToUse.id, {
-        title: String(title).trim(),
-        amount: finalAmount,
-        paidBy: userId,
-        splitType: mapSplitType(splitType),
-        participants: participants.length > 0 ? participants : undefined,
-      });
-      setAmount("");
-      setTitle("New split");
-      setCustomShares({});
-      setScanResult(null);
-      setScanFeedback("");
-      setExtraPeople([]);
-      setFeedback("Split created and synced.");
-    } catch (error) {
-      setFeedback(error.response?.data?.message || "Could not create split.");
     } finally {
-      setIsSaving(false);
+      submittingRef.current = false;
     }
   };
 
@@ -307,9 +352,9 @@ export default function Split() {
           type: "direct",
           memberIds: [],
         });
-        if (newGroup && newGroup.group) {
-          groupToUse = newGroup.group;
-          setSelectedGroupId(newGroup.group.id);
+        if (newGroup) {
+          groupToUse = newGroup.group || newGroup;
+          setSelectedGroupId(userIdOf(groupToUse));
         }
       }
 
@@ -321,7 +366,7 @@ export default function Split() {
 
       const formData = new FormData();
       formData.append("receipt", file);
-      const data = unwrap(await api.post(`/groups/${groupToUse.id}/scan-receipt`, formData, {
+      const data = unwrap(await api.post(`/groups/${userIdOf(groupToUse)}/scan-receipt`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       }));
       if (data.fields?.total != null && data.fields?.total !== "") {
