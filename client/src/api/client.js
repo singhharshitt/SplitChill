@@ -43,8 +43,11 @@ api.interceptors.response.use(
         refreshRequest = refreshRequest || api.post("/auth/refresh", body);
         const data = unwrap(await refreshRequest);
         refreshRequest = null;
-        // Clear legacy refresh token from localStorage — cookie is the new home
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        if (data.refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+        } else {
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+        }
         const activeStorage = sessionStorage.getItem(TOKEN_KEY) ? sessionStorage : localStorage;
         activeStorage.setItem(TOKEN_KEY, data.token);
         activeStorage.setItem(USER_KEY, JSON.stringify(data.user));

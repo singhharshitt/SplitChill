@@ -11,7 +11,7 @@ export default function SplitPreview({ amount, people, splitType, customShares, 
   const shares = useMemo(() => {
     const total = parseCurrencyInput(amount);
     if (!people.length || total <= 0) return [];
-    if (recommendedShares?.length && splitType !== "custom") {
+    if (recommendedShares?.length && splitType !== "custom" && splitType !== "equal") {
       return people.map((person) => {
         const backendShare = recommendedShares.find((share) => String(share.user) === String(person.id));
         return { ...person, share: backendShare?.share || 0 };

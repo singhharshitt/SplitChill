@@ -72,7 +72,12 @@ export function AuthProvider({ children }) {
       // Access token in localStorage (short-lived, 15m TTL)
       // Refresh token is now in httpOnly cookie — NOT stored client-side
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.removeItem(REFRESH_TOKEN_KEY); // clear any legacy value
+      // Development fallback: persist refreshToken to localStorage when server returns it
+      if (data.refreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+      } else {
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+      }
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(USER_KEY);
@@ -127,7 +132,12 @@ export function AuthProvider({ children }) {
       }));
 
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      // Development fallback: persist refreshToken to localStorage when server returns it
+      if (data.refreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+      } else {
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+      }
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(USER_KEY);
@@ -163,7 +173,12 @@ export function AuthProvider({ children }) {
   };
 
   if (isLoading) {
-    return null; // Or a loading spinner
+    // Render a minimal loading placeholder instead of null to avoid a black screen
+    return (
+      <div style={{ minHeight: '100vh' }} className="flex items-center justify-center">
+        <div className="text-sm text-gray-600">Loading...</div>
+      </div>
+    );
   }
 
   return (

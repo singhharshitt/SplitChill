@@ -26,26 +26,22 @@ function clearRefreshCookie(res) {
 const register = asyncHandler(async (req, res) => {
   const result = await authService.register(req.body);
   setRefreshCookie(res, result.refreshToken);
-  res.status(201).json({
-    success: true,
-    data: {
-      user: result.user,
-      token: result.token,
-      // refreshToken is in httpOnly cookie — not in JSON body
-    },
-  });
+  const payload = {
+    user: result.user,
+    token: result.token,
+  };
+  // For local development only, include the refresh token in the JSON body
+  // to make it easy to work around browser cookie restrictions on localhost.
+  if (process.env.NODE_ENV !== "production") payload.refreshToken = result.refreshToken;
+  res.status(201).json({ success: true, data: payload });
 });
 
 const login = asyncHandler(async (req, res) => {
   const result = await authService.login(req.body);
   setRefreshCookie(res, result.refreshToken);
-  res.json({
-    success: true,
-    data: {
-      user: result.user,
-      token: result.token,
-    },
-  });
+  const payload = { user: result.user, token: result.token };
+  if (process.env.NODE_ENV !== "production") payload.refreshToken = result.refreshToken;
+  res.json({ success: true, data: payload });
 });
 
 const refresh = asyncHandler(async (req, res) => {
@@ -56,13 +52,9 @@ const refresh = asyncHandler(async (req, res) => {
   }
   const result = await authService.refresh(refreshToken);
   setRefreshCookie(res, result.refreshToken);
-  res.json({
-    success: true,
-    data: {
-      user: result.user,
-      token: result.token,
-    },
-  });
+  const payload = { user: result.user, token: result.token };
+  if (process.env.NODE_ENV !== "production") payload.refreshToken = result.refreshToken;
+  res.json({ success: true, data: payload });
 });
 
 const logout = asyncHandler(async (req, res) => {

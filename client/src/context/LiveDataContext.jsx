@@ -438,10 +438,10 @@ export function LiveDataProvider({ children }) {
     }
   }, []);
 
-  const recommendSplit = async (groupId, payload) => {
+  const recommendSplit = useCallback(async (groupId, payload) => {
     const data = unwrap(await api.post(`/groups/${groupId}/recommend-split`, payload));
     return data.recommendation;
-  };
+  }, []);
 
   const settleUp = async (payload) => {
     const data = unwrap(await api.post("/settle", payload));
