@@ -51,3 +51,4 @@ docker/**/*.local
 
 # OpenMemory - IDE/Assistant specific rules
 .windsurf\rules\openmemory.md
+nul

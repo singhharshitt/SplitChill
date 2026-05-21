@@ -12,10 +12,13 @@ const { initSocket } = require("./src/socket/socketHub");
 const { createIndexes } = require("./src/utils/createIndexes");
 const { startPaymentReconciliationJob } = require("./src/jobs/paymentReconciliation.job");
 const { startSmsRetryJob } = require("./src/jobs/smsRetry.job");
+const { getConfiguredOrigins, isAllowedOrigin } = require("./src/config/corsOrigins");
 
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const SOCKET_CLIENT_URL = CLIENT_URL.split(",").map((origin) => origin.trim());
+const SOCKET_CLIENT_URL = (origin, callback) => {
+  if (isAllowedOrigin(origin, getConfiguredOrigins())) return callback(null, true);
+  return callback(new Error("Not allowed by CORS"));
+};
 const server = http.createServer(app);
 let hasStartedListening = false;
 let hasStartedJobs = false;

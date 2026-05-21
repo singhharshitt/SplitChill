@@ -8,10 +8,10 @@ const errorHandler = require("./middleware/errorHandler");
 const notFound = require("./middleware/notFound");
 const requestLogger = require("./middleware/requestLogger");
 const correlationId = require("./middleware/correlationId");
+const { getConfiguredOrigins, isAllowedOrigin } = require("./config/corsOrigins");
 
 const app = express();
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const allowedOrigins = CLIENT_URL.split(",").map((origin) => origin.trim());
+const allowedOrigins = getConfiguredOrigins();
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -20,7 +20,7 @@ app.use(helmet({
 }));
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (isAllowedOrigin(origin, allowedOrigins)) return callback(null, true);
     return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,

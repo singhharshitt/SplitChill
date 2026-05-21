@@ -1,0 +1,3 @@
+docker/jenkins-dind/*.sh text eol=lf
+docker/jenkins-dind/Dockerfile text eol=lf
+nul
