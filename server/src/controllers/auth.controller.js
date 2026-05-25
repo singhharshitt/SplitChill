@@ -3,12 +3,14 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const REFRESH_COOKIE = "splitchill_rt";
 const REFRESH_TTL_MS = Number(process.env.REFRESH_TOKEN_TTL_MS || 30 * 24 * 60 * 60 * 1000);
+const isProduction = process.env.NODE_ENV === "production";
+const refreshCookieSameSite = isProduction ? "none" : "lax";
 
 function setRefreshCookie(res, refreshToken) {
   res.cookie(REFRESH_COOKIE, refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    secure: isProduction,
+    sameSite: refreshCookieSameSite,
     path: "/api/auth",
     maxAge: REFRESH_TTL_MS,
   });
@@ -17,8 +19,8 @@ function setRefreshCookie(res, refreshToken) {
 function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    secure: isProduction,
+    sameSite: refreshCookieSameSite,
     path: "/api/auth",
   });
 }
@@ -32,7 +34,7 @@ const register = asyncHandler(async (req, res) => {
   };
   // For local development only, include the refresh token in the JSON body
   // to make it easy to work around browser cookie restrictions on localhost.
-  if (process.env.NODE_ENV !== "production") payload.refreshToken = result.refreshToken;
+  if (!isProduction) payload.refreshToken = result.refreshToken;
   res.status(201).json({ success: true, data: payload });
 });
 
@@ -40,7 +42,7 @@ const login = asyncHandler(async (req, res) => {
   const result = await authService.login(req.body);
   setRefreshCookie(res, result.refreshToken);
   const payload = { user: result.user, token: result.token };
-  if (process.env.NODE_ENV !== "production") payload.refreshToken = result.refreshToken;
+  if (!isProduction) payload.refreshToken = result.refreshToken;
   res.json({ success: true, data: payload });
 });
 
@@ -53,7 +55,7 @@ const refresh = asyncHandler(async (req, res) => {
   const result = await authService.refresh(refreshToken);
   setRefreshCookie(res, result.refreshToken);
   const payload = { user: result.user, token: result.token };
-  if (process.env.NODE_ENV !== "production") payload.refreshToken = result.refreshToken;
+  if (!isProduction) payload.refreshToken = result.refreshToken;
   res.json({ success: true, data: payload });
 });
 

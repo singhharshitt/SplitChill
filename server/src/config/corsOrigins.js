@@ -1,10 +1,15 @@
 const DEFAULT_CLIENT_URL = "http://localhost:5173";
+const PRODUCTION_CLIENT_URLS = [
+  "https://splitchill.vercel.app",
+];
 
 function getConfiguredOrigins(clientUrl = process.env.CLIENT_URL || DEFAULT_CLIENT_URL) {
-  return clientUrl
+  const configuredOrigins = clientUrl
     .split(",")
     .map((origin) => origin.trim().replace(/\/$/, ""))
     .filter(Boolean);
+
+  return [...new Set([...configuredOrigins, ...PRODUCTION_CLIENT_URLS])];
 }
 
 function isLocalDevelopmentOrigin(origin) {

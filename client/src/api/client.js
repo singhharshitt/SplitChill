@@ -1,6 +1,13 @@
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+const configuredSocketUrl = import.meta.env.VITE_SOCKET_URL;
+const defaultApiUrl = import.meta.env.PROD ? "https://splitchill.onrender.com/api" : "http://localhost:5000/api";
+
+export const API_BASE_URL = (
+  configuredApiUrl ||
+  (configuredSocketUrl ? `${configuredSocketUrl.replace(/\/$/, "")}/api` : defaultApiUrl)
+).replace(/\/$/, "");
 export const TOKEN_KEY = "splitchill_token";
 export const USER_KEY = "splitchill_user";
 
