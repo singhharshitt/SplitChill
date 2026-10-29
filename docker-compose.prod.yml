@@ -57,13 +57,6 @@ services:
       SOCKET_REDIS_URL: ${SOCKET_REDIS_URL:-redis://redis:6379}
       JWT_SECRET: ${JWT_SECRET:-change-me-secret}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh}
-      HYPERSWITCH_BASE_URL: ${HYPERSWITCH_BASE_URL:-https://api.hyperswitch.io}
-      HYPERSWITCH_API_KEY: ${HYPERSWITCH_API_KEY:-}
-      HYPERSWITCH_WEBHOOK_SECRET: ${HYPERSWITCH_WEBHOOK_SECRET:-}
-      TEXTBEE_BASE_URL: ${TEXTBEE_BASE_URL:-https://api.textbee.dev/api/v1}
-      TEXTBEE_API_KEY: ${TEXTBEE_API_KEY:-}
-      TEXTBEE_DEVICE_ID: ${TEXTBEE_DEVICE_ID:-}
-      TEXTBEE_WEBHOOK_SECRET: ${TEXTBEE_WEBHOOK_SECRET:-}
       DEMO_AUTH_ENABLED: ${DEMO_AUTH_ENABLED:-false}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/health/ready | grep -q '\"ready\":true'"]

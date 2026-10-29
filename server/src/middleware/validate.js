@@ -71,6 +71,17 @@ const schemas = {
       share: z.coerce.number().min(0).optional(),
     })).max(50).optional(),
   }),
+  expenseUpdate: z.object({
+    title: z.string().trim().min(2).max(140).optional(),
+    amount: positiveMoney.optional(),
+    paidBy: objectId.optional(),
+    splitType: z.enum(["equal", "income-based", "usage-based", "ai-recommended", "custom"]).optional(),
+    participants: z.array(z.object({
+      user: objectId,
+      usage: z.coerce.number().min(0).max(5).optional(),
+      share: z.coerce.number().min(0).optional(),
+    })).max(50).optional(),
+  }),
   recommendSplit: z.object({
     amount: positiveMoney,
     splitType: z.enum(["equal", "income-based", "usage-based", "ai-recommended", "custom"]).optional(),
@@ -89,18 +100,10 @@ const schemas = {
     receiverUpiId: z.string().trim().regex(/^[\w.\-]{2,}@[a-zA-Z]{2,}[\w.\-]*$/, "Invalid UPI id").optional(),
   }),
   confirmPayment: z.object({
-    status: z.enum(["completed", "cancelled", "failed"]).default("completed"),
     providerReference: z.string().trim().max(120).optional(),
   }),
-  initiatePayment: z.object({
-    currency: z.string().trim().length(3).toUpperCase().optional().default("INR"),
-  }),
-  startOtp: z.object({
-    phone: z.string().trim().regex(/^\+?\d{10,15}$/, "Valid phone number required"),
-  }),
-  verifyOtp: z.object({
-    challengeId: objectId,
-    code: z.string().trim().regex(/^\d{6}$/, "OTP must be 6 digits"),
+  cancelSettlement: z.object({
+    reason: z.string().trim().max(240).optional(),
   }),
   transactionIdParam: z.object({
     transactionId: objectId,
@@ -111,6 +114,10 @@ const schemas = {
   idParam: z.object({
     id: objectId,
   }),
+  expenseParams: z.object({
+    id: objectId,
+    expenseId: objectId,
+  }),
   chatMessage: z.object({
     text: z.string().trim().min(1).max(1000),
     metadata: z.record(z.string(), z.any()).optional(),
@@ -118,6 +125,11 @@ const schemas = {
   updateMe: z.object({
     name: z.string().trim().min(2).max(80).optional(),
     income: z.coerce.number().min(0).max(100000000).optional(),
+    // Empty string means "clear the saved UPI ID"; otherwise it must be a valid VPA.
+    upi: z.union([
+      z.literal(""),
+      z.string().trim().regex(/^[\w.\-]{2,}@[a-zA-Z]{2,}[\w.\-]*$/, "Invalid UPI id"),
+    ]).optional(),
     preferences: z.object({
       defaultSplit: z.enum(["equal", "ai", "custom"]).optional(),
       paymentReminders: z.boolean().optional(),

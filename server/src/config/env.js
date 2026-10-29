@@ -14,38 +14,14 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   SOCKET_REDIS_URL: z.string().optional(),
 
-  // Hyperswitch payment
-  HYPERSWITCH_BASE_URL: z.string().url().default("https://sandbox.hyperswitch.io"),
-  HYPERSWITCH_API_KEY: z.string().optional(),
-  HyperID: z.string().optional(), // alias for HYPERSWITCH_API_KEY
-  HYPERSWITCH_WEBHOOK_SECRET: z.string().optional(),
-  HYPERSWITCH_PAYMENT_RESPONSE_HASH_KEY: z.string().optional(),
-  HYPERSWITCH_WEBHOOK_TOLERANCE_MS: z.coerce.number().default(5 * 60 * 1000),
-
   // AI — Groq
   GROQ_API_KEY: z.string().optional(),
   groq: z.string().optional(), // alias
-  // AI — Mistral (fallback)
-  MISTRAL_API_KEY: z.string().optional(),
-  Mistral: z.string().optional(), // alias
 
   // OCR
   OCRSPACE_API_KEY: z.string().optional(),
   OCRSPACE: z.string().optional(), // alias
 
-  // SMS
-  TEXTBEE_BASE_URL: z.string().url().default("https://api.textbee.dev/api/v1"),
-  TEXTBEE_API_KEY: z.string().optional(),
-  TEXTBEE_DEVICE_ID: z.string().optional(),
-  TEXTBEE_WEBHOOK_SECRET: z.string().optional(),
-  OTP_TTL_MS: z.coerce.number().default(5 * 60 * 1000),
-  OTP_RATE_LIMIT_PER_15_MIN: z.coerce.number().default(3),
-
-  // Jobs
-  PAYMENT_RECONCILIATION_INTERVAL_MS: z.coerce.number().default(5 * 60 * 1000),
-  SMS_RETRY_INTERVAL_MS: z.coerce.number().default(2 * 60 * 1000),
-  SMS_MAX_ATTEMPTS: z.coerce.number().default(5),
-  DISABLE_BACKGROUND_JOBS: z.string().optional(),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().default(300),
   DEMO_AUTH_ENABLED: z.string().optional(),
@@ -60,20 +36,10 @@ function validateEnv() {
   const isProduction = parsed.data.NODE_ENV === "production";
 
   // ── Alias resolution ──
-  // Resolve HyperID → HYPERSWITCH_API_KEY
-  if (!parsed.data.HYPERSWITCH_API_KEY && parsed.data.HyperID) {
-    process.env.HYPERSWITCH_API_KEY = parsed.data.HyperID;
-    parsed.data.HYPERSWITCH_API_KEY = parsed.data.HyperID;
-  }
   // Resolve groq → GROQ_API_KEY
   if (!parsed.data.GROQ_API_KEY && parsed.data.groq) {
     process.env.GROQ_API_KEY = parsed.data.groq;
     parsed.data.GROQ_API_KEY = parsed.data.groq;
-  }
-  // Resolve Mistral → MISTRAL_API_KEY
-  if (!parsed.data.MISTRAL_API_KEY && parsed.data.Mistral) {
-    process.env.MISTRAL_API_KEY = parsed.data.Mistral;
-    parsed.data.MISTRAL_API_KEY = parsed.data.Mistral;
   }
   // Resolve OCRSPACE → OCRSPACE_API_KEY
   if (!parsed.data.OCRSPACE_API_KEY && parsed.data.OCRSPACE) {

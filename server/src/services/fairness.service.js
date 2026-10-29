@@ -1,7 +1,7 @@
 const Group = require("../models/Group");
 const Expense = require("../models/Expense");
 const AppError = require("../utils/appError");
-const { calculateFairness, calculateShares } = require("../utils/fairnessEngine");
+const { calculateFairness, calculateShares, roundMoney, clamp } = require("../utils/fairnessEngine");
 const { ensureMembership } = require("./group.service");
 const aiService = require("./ai.service");
 
@@ -63,21 +63,23 @@ async function recommendSplit(groupId, userId, { amount, participants, splitType
       });
 
       if (aiResult.shares?.length) {
-        return {
-          splitType: "ai-recommended",
-          amount,
-          shares: aiResult.shares.map((s) => ({
-            user: s.user,
-            share: s.share,
-            reason: s.reason,
-            userName: findMemberName(group, s.user),
-          })),
-          explanation: aiResult.explanation,
-          confidence: aiResult.confidence,
-          splitStrategy: aiResult.splitStrategy,
-          aiModel: aiResult.model,
-          projectedFairness: projectFairness(group, aiResult.shares, amount),
-        };
+        const sanitized = reconcileAiShares(aiResult.shares, group, amount);
+        if (sanitized) {
+          return {
+            splitType: "ai-recommended",
+            amount,
+            shares: sanitized.map((s) => ({
+              ...s,
+              userName: findMemberName(group, s.user),
+            })),
+            explanation: aiResult.explanation,
+            confidence: aiResult.confidence,
+            splitStrategy: aiResult.splitStrategy,
+            aiModel: aiResult.model,
+            projectedFairness: projectFairness(group, sanitized, amount),
+          };
+        }
+        // AI output unusable — fall through to the deterministic engine.
       }
     } catch {
       // Fall through to engine-based recommendation
@@ -109,6 +111,46 @@ function assertCustomShares(amount, participants, splitType) {
   if (Math.abs(total - Number(amount)) > 0.01) {
     throw new AppError("Custom shares must add up to the expense amount", 400);
   }
+}
+
+/**
+ * Sanitize and reconcile AI-generated shares so they exactly sum to the amount.
+ * - drops unknown/hallucinated participant ids
+ * - clamps each share to [0, amount]
+ * - distributes any rounding drift so total === amount exactly (2dp)
+ * Returns null when nothing usable remains.
+ */
+function reconcileAiShares(rawShares, group, amount) {
+  const memberIds = new Set(group.members.map((m) => String(m.user?._id || m.user)));
+  const numericAmount = Number(amount);
+
+  const valid = rawShares
+    .filter((share) => memberIds.has(String(share.user)))
+    .filter((share) => Number.isFinite(Number(share.share)))
+    .map((share) => ({
+      user: String(share.user),
+      reason: typeof share.reason === "string" ? share.reason.slice(0, 200) : "",
+      share: roundMoney(clamp(Number(share.share), 0, numericAmount)),
+    }));
+
+  if (!valid.length) return null;
+
+  // Distribute any remaining rounding drift onto the participants so the
+  // shares reconcile exactly with the expense amount.
+  let allocated = roundMoney(valid.reduce((sum, s) => sum + s.share, 0));
+  let remainder = roundMoney(numericAmount - allocated);
+  if (Math.abs(remainder) > 0.011) {
+    // AI output drifted too far from the fair distribution — reject it so the
+    // deterministic engine produces the split instead.
+    return null;
+  }
+  if (remainder !== 0) {
+    const target = valid.find((s) => s.share + remainder >= 0) || valid[0];
+    target.share = roundMoney(target.share + remainder);
+    remainder = 0;
+  }
+
+  return valid.map((s) => ({ ...s, share: roundMoney(Math.max(0, s.share)) }));
 }
 
 function normalizeParticipants(participants, group) {

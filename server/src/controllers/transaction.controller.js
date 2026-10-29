@@ -6,8 +6,18 @@ const settle = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: result });
 });
 
+const reportPayment = asyncHandler(async (req, res) => {
+  const result = await transactionService.reportPaid(req.user._id, req.params.id, req.body);
+  res.json({ success: true, data: result });
+});
+
 const confirmPayment = asyncHandler(async (req, res) => {
-  const result = await transactionService.confirmPayment(req.user._id, req.params.id, req.body);
+  const result = await transactionService.confirmSettlement(req.user._id, req.params.id, req.body);
+  res.json({ success: true, data: result });
+});
+
+const cancelSettlement = asyncHandler(async (req, res) => {
+  const result = await transactionService.cancelSettlement(req.user._id, req.params.id, req.body);
   res.json({ success: true, data: result });
 });
 
@@ -16,9 +26,9 @@ const getTransactions = asyncHandler(async (req, res) => {
     groupId: req.query.groupId,
     limit: req.query.limit,
     cursor: req.query.cursor,
-    status: req.query.status
+    status: req.query.status,
   });
   res.json({ success: true, data: result });
 });
 
-module.exports = { confirmPayment, getTransactions, settle };
+module.exports = { cancelSettlement, confirmPayment, getTransactions, reportPayment, settle };

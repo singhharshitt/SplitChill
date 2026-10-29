@@ -20,6 +20,8 @@ router.post("/:id/add-member", validate(schemas.addMember), groupController.addM
 
 router.post("/:id/expenses", validate(schemas.expense), expenseController.addExpense);
 router.get("/:id/expenses", validatePagination, expenseController.getExpenses);
+router.patch("/:id/expenses/:expenseId", validate(schemas.expenseParams, "params"), validate(schemas.expenseUpdate), expenseController.updateExpense);
+router.delete("/:id/expenses/:expenseId", validate(schemas.expenseParams, "params"), expenseController.deleteExpense);
 
 router.get("/:id/fairness", fairnessController.getFairness);
 router.post("/:id/recommend-split", validate(schemas.recommendSplit), fairnessController.recommendSplit);

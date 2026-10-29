@@ -62,13 +62,6 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-dev-refresh-secret-change-me-1234}
       REDIS_URL: redis://redis:6379
       SOCKET_REDIS_URL: redis://redis:6379
-      HYPERSWITCH_BASE_URL: ${HYPERSWITCH_BASE_URL:-http://host.docker.internal:8080}
-      HYPERSWITCH_API_KEY: ${HYPERSWITCH_API_KEY:-dev-hyperswitch-api-key}
-      HYPERSWITCH_WEBHOOK_SECRET: ${HYPERSWITCH_WEBHOOK_SECRET:-dev-hyperswitch-webhook-secret}
-      TEXTBEE_BASE_URL: ${TEXTBEE_BASE_URL:-https://api.textbee.dev/api/v1}
-      TEXTBEE_API_KEY: ${TEXTBEE_API_KEY:-}
-      TEXTBEE_DEVICE_ID: ${TEXTBEE_DEVICE_ID:-}
-      TEXTBEE_WEBHOOK_SECRET: ${TEXTBEE_WEBHOOK_SECRET:-dev-textbee-webhook-secret}
       DEMO_AUTH_ENABLED: ${DEMO_AUTH_ENABLED:-true}
     volumes:
       - ./server:/app

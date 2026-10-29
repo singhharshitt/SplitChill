@@ -7,30 +7,33 @@ const logger = require("../utils/logger");
 const GROQ_BASE = "https://api.groq.com/openai/v1/chat/completions";
 
 // ── Model routing table ──
+// Verified against https://console.groq.com/docs/models (production models) on 2026-10-27.
+// meta-llama/llama-4-*, qwen/qwen3-32b and llama-3.3-70b-versatile (dev tier) were deprecated
+// and are no longer available — see https://console.groq.com/docs/deprecations.
 const MODELS = {
   "split-recommendation": {
-    primary: "meta-llama/llama-4-maverick-17b-128e-instruct",
-    fallback: "meta-llama/llama-3.3-70b-versatile",
+    primary: "openai/gpt-oss-120b",
+    fallback: "openai/gpt-oss-20b",
     label: "Split Recommendation",
   },
   "fairness-explanation": {
-    primary: "qwen/qwen3-32b",
-    fallback: "meta-llama/llama-3.3-70b-versatile",
+    primary: "openai/gpt-oss-120b",
+    fallback: "openai/gpt-oss-20b",
     label: "Fairness Explanation",
   },
   "predictive-suggestions": {
-    primary: "meta-llama/llama-4-scout-17b-16e-instruct",
-    fallback: "meta-llama/llama-3.3-70b-versatile",
+    primary: "openai/gpt-oss-20b",
+    fallback: "openai/gpt-oss-120b",
     label: "Predictive Suggestions",
   },
   "analytics-summary": {
-    primary: "meta-llama/llama-3.3-70b-versatile",
-    fallback: "meta-llama/llama-4-scout-17b-16e-instruct",
+    primary: "openai/gpt-oss-120b",
+    fallback: "openai/gpt-oss-20b",
     label: "Analytics Summary",
   },
   "app-assistant": {
-    primary: "meta-llama/llama-3.3-70b-versatile",
-    fallback: "meta-llama/llama-4-scout-17b-16e-instruct",
+    primary: "openai/gpt-oss-20b",
+    fallback: "openai/gpt-oss-120b",
     label: "SplitChill App Assistant",
   },
 };
@@ -274,9 +277,9 @@ async function getAppAssistantReply({ message, user, groups, transactions, page 
 
 ## YOUR CAPABILITIES (What You Can Help With)
 1. EXPENSE SPLITTING & FAIRNESS: Explain equal, income/usage-based, AI-recommended, and custom splits. Calculate who owes what. Explain the Fairness Engine and Fairness Score (0-100). Suggest optimal split types.
-2. APP NAVIGATION & FEATURES: Guide users through creating groups, adding members/expenses, OCR receipt scanning, payment settlement (HyperSwitch, UPI), analytics dashboard, and AI recommendations.
+2. APP NAVIGATION & FEATURES: Guide users through creating groups, adding members/expenses, OCR receipt scanning, direct UPI settlements (SplitChill never collects money itself), analytics dashboard, and AI recommendations.
 3. FINANCIAL WISDOM & BENEFITS: Explain why equal splits aren't always fair, share tips on group financial health, suggest settlement strategies, explain contribution imbalance, provide budgeting tips.
-4. TECHNICAL SUPPORT (App-Specific Only): Help with login, JWT, Socket.io real-time chat, OCR scanning, Docker/MongoDB setup, API endpoints.
+4. TECHNICAL SUPPORT (App-Specific Only): Help with login, JWT, Socket.io real-time chat, OCR scanning, direct UPI settlements (SplitChill cannot verify real bank transfers — the receiver confirms receipt in-app), Docker/MongoDB setup, API endpoints.
 5. GROUP DYNAMICS & COMMUNICATION: Suggest polite ways to ask for payback, draft chat messages, mediate fairness disputes, recommend who should pay next.
 
 ## STRICT RULES (DO NOT VIOLATE)

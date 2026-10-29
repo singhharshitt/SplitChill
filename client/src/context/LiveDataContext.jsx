@@ -20,6 +20,14 @@ function prependById(items, nextItem) {
   return [nextItem, ...items.filter((item) => userIdOf(item) !== nextId)];
 }
 
+function updateOrPrepend(items, nextItem) {
+  const nextId = userIdOf(nextItem);
+  if (!nextId) return items;
+  const exists = items.some((item) => userIdOf(item) === nextId);
+  if (!exists) return prependById(items, nextItem);
+  return items.map((item) => (userIdOf(item) === nextId ? nextItem : item));
+}
+
 export function LiveDataProvider({ children }) {
   const { applyUserUpdate, isLoggedIn, user } = useAuth();
   const currentUserId = userIdOf(user);
@@ -452,13 +460,33 @@ export function LiveDataProvider({ children }) {
     return data;
   };
 
+  // Receiver confirms receipt of a UPI settlement — settles balances server-side.
   const confirmPayment = async (transactionId, payload) => {
     const data = unwrap(await api.patch(`/transactions/${transactionId}/confirm`, payload));
     if (data.transaction) {
-      setTransactions((existing) => prependById(existing, mapTransaction(data.transaction, currentUserId)));
+      setTransactions((existing) =>
+        updateOrPrepend(existing, mapTransaction(data.transaction, currentUserId)));
     }
     if (data.transaction?.raw?.group?._id || data.transaction?.group?._id) {
       await refreshGroup(userIdOf(data.transaction.raw?.group || data.transaction.group));
+    }
+    return data;
+  };
+
+  // Payer reports "I sent the money" — status reported_paid (unverified claim).
+  const reportSettlement = async (transactionId, payload) => {
+    const data = unwrap(await api.patch(`/transactions/${transactionId}/report`, payload));
+    if (data.transaction) {
+      setTransactions((existing) => updateOrPrepend(existing, mapTransaction(data.transaction, currentUserId)));
+    }
+    return data;
+  };
+
+  // Either participant cancels a not-yet-confirmed settlement.
+  const cancelSettlement = async (transactionId, payload) => {
+    const data = unwrap(await api.patch(`/transactions/${transactionId}/cancel`, payload));
+    if (data.transaction) {
+      setTransactions((existing) => updateOrPrepend(existing, mapTransaction(data.transaction, currentUserId)));
     }
     return data;
   };
@@ -482,6 +510,9 @@ export function LiveDataProvider({ children }) {
     recommendSplit,
     settleUp,
     confirmPayment,
+    reportSettlement,
+    cancelSettlement,
+    currentUserId,
     refreshGroups,
     refreshGroup,
     refreshTransactions,

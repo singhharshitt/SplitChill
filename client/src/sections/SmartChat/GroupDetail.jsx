@@ -308,7 +308,7 @@ export default function GroupDetail({ group, onSendMessage, onAddMember }) {
                 {group.members.map((member) => <option key={member.id} value={member.id}>{member.name} receives</option>)}
               </select>
               <input value={settlement.amount} onChange={(event) => setSettlement((current) => ({ ...current, amount: event.target.value }))} type="number" min="1" className="rounded-2xl border border-black/10 bg-[#FAFAF8] px-4 py-3 text-sm outline-none" placeholder="Amount" />
-              <input value={settlement.receiverUpiId} onChange={(event) => setSettlement((current) => ({ ...current, receiverUpiId: event.target.value }))} className="rounded-2xl border border-black/10 bg-[#FAFAF8] px-4 py-3 text-sm outline-none" placeholder="Receiver UPI (optional)" />
+              <input value={settlement.receiverUpiId} onChange={(event) => setSettlement((current) => ({ ...current, receiverUpiId: event.target.value }))} className="rounded-2xl border border-black/10 bg-[#FAFAF8] px-4 py-3 text-sm outline-none" placeholder="Receiver UPI ID (optional — defaults to their saved UPI)" />
             </div>
             <div className="mt-6 flex gap-3">
               <button onClick={() => setSettlementOpen(false)} className="flex-1 rounded-full border border-black/10 px-5 py-3 text-sm font-medium">Cancel</button>

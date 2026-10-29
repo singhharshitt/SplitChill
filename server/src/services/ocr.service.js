@@ -23,6 +23,20 @@ function getOcrSpaceKey() {
  */
 async function extractText(filePath) {
   const ocrKey = getOcrSpaceKey();
+  const ext = path.extname(filePath).toLowerCase();
+
+  // PDFs can only be processed by OCRSpace — Tesseract cannot read them.
+  if (ext === ".pdf" && !ocrKey) {
+    return {
+      rawText: "",
+      provider: "none",
+      confidence: 0,
+      receiptDetected: false,
+      detection: null,
+      fields: {},
+      error: "PDF receipts require the OCRSPACE_API_KEY to be configured. Upload a JPG/PNG photo of the receipt instead.",
+    };
+  }
 
   // ── Try OCRSpace (cloud) first ──
   if (ocrKey) {

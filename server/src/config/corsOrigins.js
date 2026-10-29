@@ -13,8 +13,6 @@ function getConfiguredOrigins(clientUrl = process.env.CLIENT_URL || DEFAULT_CLIE
 }
 
 function isLocalDevelopmentOrigin(origin) {
-  if (process.env.NODE_ENV === "production") return false;
-
   try {
     const { hostname, protocol } = new URL(origin);
     return (

@@ -31,17 +31,30 @@ async function getSuggestions(groupId, userId) {
     expectedImbalance: roundMoney(group.members.reduce((sum, member) => sum + Math.abs(member.netBalance || 0), 0) / 2),
     suggestions: settlements.map((item) => ({
       ...item,
+      // These come from stored balances (historical facts), not AI speculation.
+      source: "historical-calculation",
       message: `${item.payerName} should settle ₹${item.amount} with ${item.receiverName}`,
     })),
   };
 
-  // ── AI-enhanced predictions (non-blocking) ──
+  // ── AI-enhanced predictions (only when there is history to ground them) ──
   try {
     const recentExpenses = await Expense.find({ group: groupId })
       .sort({ createdAt: -1 })
       .limit(5)
       .select("title amount")
       .lean();
+
+    if (!recentExpenses.length) {
+      // Not enough history — degrade gracefully instead of letting the model
+      // invent financial facts.
+      engineResult.aiPredictions = {
+        items: [],
+        insufficientData: true,
+        message: "Not enough expense history yet — predictions will appear after a few expenses.",
+      };
+      return engineResult;
+    }
 
     const aiPredictions = await aiService.getAiPredictions({
       members: group.members.map((m) => ({
@@ -53,7 +66,21 @@ async function getSuggestions(groupId, userId) {
       groupName: group.name,
     });
 
-    engineResult.aiPredictions = aiPredictions;
+    // Normalize AI output into a single shape and mark it as speculative so
+    // the UI can present it differently from the historical balance math.
+    if (Array.isArray(aiPredictions?.predictions) && aiPredictions.predictions.length) {
+      engineResult.aiPredictions = {
+        items: aiPredictions.predictions.map((item) => ({
+          source: "ai-recommendation",
+          ...(item.title || item.text || item.message ? item : {}),
+        })),
+        trendInsight: aiPredictions.trendInsight || "",
+        insufficientData: false,
+      };
+      return engineResult;
+    }
+
+    engineResult.aiPredictions = { items: [], insufficientData: false, message: "AI predictions unavailable right now." };
   } catch {
     engineResult.aiPredictions = null;
   }

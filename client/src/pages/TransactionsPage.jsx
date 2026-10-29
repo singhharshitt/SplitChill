@@ -22,7 +22,7 @@ function InsightBadge({ text }) {
    MAIN TRANSACTIONS PAGE
    ───────────────────────────────────────────── */
 export default function TransactionsPage() {
-  const { transactions, expenseTransactions } = useLiveData();
+  const { transactions, expenseTransactions, currentUserId } = useLiveData();
   const [filters, setFilters] = useState({ group: "All Groups", person: "All People" });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -127,6 +127,7 @@ export default function TransactionsPage() {
       {selectedTransaction && (
         <TransactionDetailModal
           transaction={selectedTransaction}
+          currentUserId={currentUserId}
           onClose={() => setSelectedTransaction(null)}
         />
       )}

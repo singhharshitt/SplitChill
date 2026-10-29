@@ -10,18 +10,17 @@ const app = require("./src/app");
 const connectDb = require("./src/config/db");
 const { initSocket } = require("./src/socket/socketHub");
 const { createIndexes } = require("./src/utils/createIndexes");
-const { startPaymentReconciliationJob } = require("./src/jobs/paymentReconciliation.job");
-const { startSmsRetryJob } = require("./src/jobs/smsRetry.job");
 const { getConfiguredOrigins, isAllowedOrigin } = require("./src/config/corsOrigins");
 
-const PORT = process.env.PORT || 5000;
+// Guard against an invalid host PORT (e.g. PORT=0): fall back to the documented default.
+const PORT = Number(process.env.PORT) > 0 ? Number(process.env.PORT) : 5000;
 const SOCKET_CLIENT_URL = (origin, callback) => {
   if (isAllowedOrigin(origin, getConfiguredOrigins())) return callback(null, true);
   return callback(new Error("Not allowed by CORS"));
 };
 const server = http.createServer(app);
 let hasStartedListening = false;
-let hasStartedJobs = false;
+let hasStartedIndexes = false;
 
 initSocket(server, SOCKET_CLIENT_URL);
 
@@ -34,12 +33,9 @@ function startListening() {
 }
 
 async function startDatabaseServices() {
+  if (hasStartedIndexes) return;
+  hasStartedIndexes = true;
   await createIndexes();
-  if (!hasStartedJobs) {
-    hasStartedJobs = true;
-    startPaymentReconciliationJob();
-    startSmsRetryJob();
-  }
 }
 
 async function boot() {

@@ -126,20 +126,20 @@ export const blogTopics = {
   payments: {
     slug: "payments",
     eyebrow: "Payments",
-    title: "Settlements with secure payment context",
-    summary: "Manual settlement, payment initiation, OTP verification, and payment events are tied back to transactions.",
+    title: "Direct UPI settlements you control",
+    summary: "Settling is member-to-member: a UPI intent link and QR code open your UPI app, and the receiver confirms receipt in-app before balances change.",
     sticker: shopptense,
     image: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=80",
     imageAlt: "Online payment card and phone",
     imageSource: "Unsplash",
     sections: [
       {
-        heading: "Payments follow transactions",
-        body: "A settlement creates a transaction, and payment status can be tracked against that transaction instead of floating separately.",
+        heading: "Settlements follow transactions",
+        body: "A settlement creates a transaction with a UPI intent and QR code for the exact outstanding amount. SplitChill never collects money itself.",
       },
       {
         heading: "Verification matters",
-        body: "The backend supports OTP and payment event history so payment state can be confirmed before the UI marks money as settled.",
+        body: "A payment link or screenshot is not proof of money movement. Balances change only after the receiver explicitly confirms receipt.",
       },
     ],
   },

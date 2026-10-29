@@ -6,10 +6,6 @@ const ChatMessage = require("../models/ChatMessage");
 const Expense = require("../models/Expense");
 const Transaction = require("../models/Transaction");
 const Group = require("../models/Group");
-const Payment = require("../models/Payment");
-const PaymentEvent = require("../models/PaymentEvent");
-const SmsLog = require("../models/SmsLog");
-const WebhookLog = require("../models/WebhookLog");
 const AuditLog = require("../models/AuditLog");
 
 function normalizeIndexKey(key = {}) {
@@ -57,22 +53,8 @@ async function createIndexes() {
     await ensureIndex(Transaction.collection, { status: 1, payer: 1, createdAt: -1 }, { background: true, name: "status_payer_createdAt_desc" }, "✓ Transaction: status + payer + createdAt");
     await ensureIndex(Transaction.collection, { status: 1, receiver: 1, createdAt: -1 }, { background: true, name: "status_receiver_createdAt_desc" }, "✓ Transaction: status + receiver + createdAt");
 
-    await ensureIndex(Payment.collection, { idempotencyKey: 1 }, { background: true, unique: true, name: "idempotency_unique" });
-    await ensureIndex(Payment.collection, { group: 1, createdAt: -1 }, { background: true, name: "payment_group_createdAt_desc" });
-    await ensureIndex(Payment.collection, { status: 1, nextRetryAt: 1 }, { background: true, name: "payment_retry_due" });
-    console.log("✓ Payment: idempotency, group pagination, retry");
-
-    await ensureIndex(PaymentEvent.collection, { provider: 1, providerEventId: 1 }, { background: true, unique: true, name: "provider_event_unique" });
-    await ensureIndex(PaymentEvent.collection, { group: 1, createdAt: -1 }, { background: true, name: "payment_event_group_createdAt_desc" });
-    console.log("✓ PaymentEvent: provider event uniqueness + pagination");
-
-    await ensureIndex(SmsLog.collection, { status: 1, nextRetryAt: 1 }, { background: true, name: "sms_retry_due" });
-    await ensureIndex(SmsLog.collection, { createdAt: -1 }, { background: true, name: "sms_createdAt_desc" });
-    console.log("✓ SmsLog: retry + createdAt");
-
-    await ensureIndex(WebhookLog.collection, { provider: 1, eventId: 1 }, { background: true, unique: true, name: "webhook_provider_event_unique" });
     await ensureIndex(AuditLog.collection, { resourceType: 1, resourceId: 1, createdAt: -1 }, { background: true, name: "audit_resource_createdAt_desc" });
-    console.log("✓ WebhookLog/AuditLog: lookup indexes");
+    console.log("✓ AuditLog: lookup indexes");
 
     await ensureIndex(Group.collection, { "members.user": 1 }, { background: true, name: "members_user" }, "✓ Group: members.user");
     await ensureIndex(Group.collection, { owner: 1, updatedAt: -1 }, { background: true, name: "owner_updatedAt_desc" }, "✓ Group: owner + updatedAt");

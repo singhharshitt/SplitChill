@@ -1,7 +1,7 @@
 import { serif } from "../../lib/uiTokens.js";
 import PaymentStatusPanel from "../../components/PaymentStatusPanel.jsx";
 
-export default function TransactionDetailModal({ transaction, onClose }) {
+export default function TransactionDetailModal({ transaction, currentUserId, onClose }) {
   if (!transaction) return null;
 
   const maxShare = Math.max(...transaction.breakdown.map((b) => b.share));
@@ -100,7 +100,7 @@ export default function TransactionDetailModal({ transaction, onClose }) {
 
           {/* Fairness Context */}
           {isSettlement && (
-            <PaymentStatusPanel transaction={transaction} />
+            <PaymentStatusPanel transaction={transaction} currentUserId={currentUserId} />
           )}
 
           {/* Fairness Context */}

@@ -15,4 +15,14 @@ const getExpenses = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result });
 });
 
-module.exports = { addExpense, getExpenses };
+const updateExpense = asyncHandler(async (req, res) => {
+  const result = await expenseService.updateExpense(req.params.id, req.params.expenseId, req.user._id, req.body);
+  res.json({ success: true, data: result });
+});
+
+const deleteExpense = asyncHandler(async (req, res) => {
+  const result = await expenseService.deleteExpense(req.params.id, req.params.expenseId, req.user._id);
+  res.json({ success: true, data: result });
+});
+
+module.exports = { addExpense, deleteExpense, getExpenses, updateExpense };

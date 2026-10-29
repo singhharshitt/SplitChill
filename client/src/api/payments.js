@@ -1,35 +1,43 @@
 import api, { unwrap } from "./client.js";
 
-export async function initiateTransactionPayment(transactionId, payload = {}) {
-  const idempotencyKey = payload.idempotencyKey || `payment-${transactionId}-${Date.now()}`;
-  const response = await api.post(`/payments/transactions/${transactionId}/initiate`, payload, {
-    headers: { "Idempotency-Key": idempotencyKey },
-  });
+const transactionPayload = (payload = {}) => ({
+  providerReference: payload.providerReference,
+});
+
+/**
+ * Report a settlement as "paid" — the payer's own claim only.
+ * SplitChill cannot see whether the UPI transfer actually succeeded.
+ */
+export async function reportSettlementPaid(transactionId, payload = {}) {
+  const response = await api.patch(`/transactions/${transactionId}/report`, transactionPayload(payload));
   return unwrap(response);
 }
 
-export async function fetchPayments({ limit = 20, cursor, status, groupId, signal } = {}) {
-  const response = await api.get("/payments", {
-    params: { limit, cursor, status, groupId },
-    signal,
-  });
+/**
+ * Receiver confirms that the money arrived. This settles the balances.
+ */
+export async function confirmSettlement(transactionId, payload = {}) {
+  const response = await api.patch(`/transactions/${transactionId}/confirm`, transactionPayload(payload));
   return unwrap(response);
 }
 
-export async function fetchPaymentEvents(paymentId, { limit = 20, cursor, signal } = {}) {
-  const response = await api.get(`/payments/${paymentId}/events`, {
-    params: { limit, cursor },
-    signal,
-  });
+/**
+ * Either participant cancels a not-yet-confirmed settlement.
+ */
+export async function cancelSettlement(transactionId, payload = {}) {
+  const response = await api.patch(`/transactions/${transactionId}/cancel`, payload);
   return unwrap(response);
 }
 
-export async function startOtp(phone) {
-  const response = await api.post("/payments/otp/start", { phone });
+/**
+ * Update the signed-in user's saved UPI ID (account settings).
+ */
+export async function updateUserProfile(profile) {
+  const response = await api.patch("/users/me", profile);
   return unwrap(response);
 }
 
-export async function verifyOtp(challengeId, code) {
-  const response = await api.post("/payments/otp/verify", { challengeId, code });
+export async function fetchCurrentUser() {
+  const response = await api.get("/users/me");
   return unwrap(response);
 }
